@@ -436,6 +436,27 @@
   .habit-weekly-day.today { border: 2px solid var(--group-color); }
   .habit-date-range { font-size: 10px; color: var(--c-text-muted); margin-top: 2px; }
 
+  /* Weekly: new model (modes + schedule) */
+  .habit-weekly-day.mode-pink   { background: var(--c-accent-light);  color: var(--c-accent-dark); }
+  .habit-weekly-day.mode-indigo { background: var(--c-primary-light); color: var(--c-primary-dark); }
+  .habit-weekly-day.mode-gold   { background: var(--c-gold-light);    color: var(--c-gold-dark); }
+  .habit-weekly-day.mode-green  { background: #E5F2DD;                color: #4A7035; }
+  [data-theme="dark"] .habit-weekly-day.mode-pink   { background: var(--c-accent-light);  color: var(--c-accent-dark); }
+  [data-theme="dark"] .habit-weekly-day.mode-indigo { background: var(--c-primary-light); color: var(--c-primary-dark); }
+  [data-theme="dark"] .habit-weekly-day.mode-gold   { background: var(--c-gold-light);    color: var(--c-gold-dark); }
+  [data-theme="dark"] .habit-weekly-day.mode-green  { background: #2A3E25;                color: #8FC078; }
+  .habit-weekly-day.unscheduled {
+    background: var(--c-surface-alt);
+    color: var(--c-text-muted);
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .habit-weekly-mode {
+    font-size: 14px;
+    margin-top: 1px;
+    line-height: 1;
+  }
+
   /* Shortcut */
   .shortcut {
     background: linear-gradient(135deg, var(--c-gold-light) 0%, var(--c-accent-light) 100%);
@@ -965,6 +986,36 @@
   .hf-date-hint { font-size: 10px; color: var(--c-text-muted); margin-top: 4px; }
   .hf-target-row { display: flex; gap: 6px; }
   .hf-target-row > input { flex: 1; }
+
+  /* Weekly form: modes list + schedule list */
+  .hf-mode-row {
+    display: flex; gap: 4px; align-items: center;
+    margin-bottom: 4px;
+  }
+  .hf-mode-row .hf-mode-emoji { flex: 0 0 48px; max-width: 48px; text-align: center; }
+  .hf-mode-row .hf-mode-name  { flex: 1; }
+  .hf-mode-row .hf-mode-color { flex: 0 0 64px; max-width: 64px; }
+  .hf-mode-row .hf-mode-del {
+    flex: 0 0 28px; max-width: 28px; height: 32px;
+    border: 1px solid var(--c-border); border-radius: 8px;
+    background: var(--c-surface); color: var(--c-accent-dark);
+    font-size: 16px; line-height: 1; cursor: pointer; padding: 0;
+  }
+  .hf-mode-empty { font-size: 11px; color: var(--c-text-muted); padding: 4px 0; }
+  .hf-add-mode {
+    width: 100%; margin-top: 4px;
+    border: 1px dashed var(--c-border); border-radius: 8px;
+    background: var(--c-surface); color: var(--c-primary);
+    font-size: 12px; padding: 8px; cursor: pointer;
+  }
+  .hf-schedule-row {
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 4px;
+  }
+  .hf-schedule-row .hf-schedule-day {
+    flex: 0 0 32px; font-size: 12px; color: var(--c-text-muted); font-weight: 600;
+  }
+  .hf-schedule-row .hf-schedule-select { flex: 1; margin-bottom: 0; }
 
   /* Long-press context menu */
   .context-menu {
@@ -1569,21 +1620,65 @@ function renderWeeklyHabit(h, g, c) {
   const todayIdx = (new Date().getDay() + 6) % 7;
   const dayLabels = ['一','二','三','四','五','六','日'];
   const checks7 = c?.weekChecks || {};
-  const days = Array.isArray(h.days) ? h.days : [false,false,false,false,false,false,false];
+  const hasNewModel = Array.isArray(h.weekSchedule) && Array.isArray(h.modes) && h.modes.length > 0;
   let cells = '';
-  for (let i = 0; i < 7; i++) {
-    const isActive = !!days[i];
-    const isDone = !!checks7[i];
-    const isToday = i === todayIdx;
-    const cls = `habit-weekly-day ${isActive ? 'active' : 'rest'} ${isDone ? 'done' : ''} ${isToday ? 'today' : ''}`;
-    cells += `<div class="${cls}" data-week-day="${i}"><div>${dayLabels[i]}</div><div>${isActive ? '要做' : '休息'}</div></div>`;
+  let descParts;
+  if (hasNewModel) {
+    const modeMap = Object.fromEntries(h.modes.map(m => [m.key, m]));
+    let doneCount = 0;
+    for (let i = 0; i < 7; i++) {
+      const modeKey = h.weekSchedule[i];
+      const mode = modeKey ? modeMap[modeKey] : null;
+      const isDone = !!checks7[i];
+      const isToday = i === todayIdx;
+      const scheduled = !!mode;
+      if (isDone) doneCount++;
+      let cls = 'habit-weekly-day';
+      if (scheduled) {
+        cls += ` mode-${mode.color}`;
+        if (isDone) cls += ' done';
+        if (isToday) cls += ' today';
+      } else {
+        cls += ' unscheduled';
+        if (isToday) cls += ' today';
+      }
+      const inner = scheduled
+        ? `<div>${dayLabels[i]}</div><div class="habit-weekly-mode">${escapeHtml(mode.emoji)}</div>`
+        : `<div>${dayLabels[i]}</div><div class="habit-weekly-mode" style="opacity:0.5;">—</div>`;
+      cells += `<div class="${cls}" data-week-day="${i}">${inner}</div>`;
+    }
+    // Build desc: which modes are scheduled
+    const scheduledCounts = {};
+    for (let i = 0; i < 7; i++) {
+      const k = h.weekSchedule[i];
+      if (!k) continue;
+      const m = modeMap[k];
+      if (!m) continue;
+      const label = m.name || '模式';
+      scheduledCounts[label] = (scheduledCounts[label] || 0) + 1;
+    }
+    const scheduleDesc = Object.entries(scheduledCounts).map(([n,c]) => `${n} ${c}`).join(' · ');
+    descParts = [
+      scheduleDesc || '本周未排程',
+      `已打卡 ${doneCount}/7 天`,
+    ];
+  } else {
+    // Legacy: days: bool[7]
+    const days = Array.isArray(h.days) ? h.days : [false,false,false,false,false,false,false];
+    for (let i = 0; i < 7; i++) {
+      const isActive = !!days[i];
+      const isDone = !!checks7[i];
+      const isToday = i === todayIdx;
+      const cls = `habit-weekly-day ${isActive ? 'active' : 'rest'} ${isDone ? 'done' : ''} ${isToday ? 'today' : ''}`;
+      cells += `<div class="${cls}" data-week-day="${i}"><div>${dayLabels[i]}</div><div>${isActive ? '要做' : '休息'}</div></div>`;
+    }
+    const doneCount = Object.values(checks7).filter(Boolean).length;
+    const activeCount = days.filter(Boolean).length;
+    descParts = [
+      `本周 ${activeCount} 活跃 + ${7 - activeCount} 休息`,
+      `已标记 ${doneCount}/7 天`,
+    ];
   }
-  const doneCount = Object.values(checks7).filter(Boolean).length;
-  const activeCount = days.filter(Boolean).length;
-  const descParts = [
-    `本周 ${activeCount} 活跃 + ${7 - activeCount} 休息`,
-    `已标记 ${doneCount}/7 天`,
-  ];
   const dateRange = formatDateRange(h.startDate, h.endDate);
   if (dateRange) descParts.push(`📅 ${dateRange}`);
   return `
@@ -1949,10 +2044,19 @@ async function toggleWeekDay(habitId, dayIdx) {
   const date = today();
   const h = getHabit(habitId);
   if (!h) return;
-  const days = Array.isArray(h.days) ? h.days : [false,false,false,false,false,false,false];
-  if (!days[dayIdx]) {
-    toast('今天休息 💛');
-    return;
+  // Check if day is checkable (new model uses weekSchedule, legacy uses days)
+  const hasNewModel = Array.isArray(h.weekSchedule) && Array.isArray(h.modes) && h.modes.length > 0;
+  if (hasNewModel) {
+    if (!h.weekSchedule[dayIdx]) {
+      toast('今天未排程 💛');
+      return;
+    }
+  } else {
+    const days = Array.isArray(h.days) ? h.days : [false,false,false,false,false,false,false];
+    if (!days[dayIdx]) {
+      toast('今天休息 💛');
+      return;
+    }
   }
   if (!state.checkIns[date]) state.checkIns[date] = {};
   const c = state.checkIns[date][habitId] || {};
@@ -2404,7 +2508,6 @@ function addHabitForm(existing) {
   const e = existing || { id: '', name: '', emoji: '✨', groupId: state.groups[0]?.id, type: 'daily' };
   const groupOptions = state.groups.map(g => `<option value="${g.id}" ${e.groupId===g.id?'selected':''}>${g.emoji} ${escapeHtml(g.name)}</option>`).join('');
   const type = e.type || 'daily';
-  const initialDays = Array.isArray(e.days) ? e.days : [false,false,false,false,false,false,false];
   const startDate = e.startDate || '';
   const endDate = e.endDate || '';
   const startTime = e.startTime || '';
@@ -2412,10 +2515,7 @@ function addHabitForm(existing) {
   const target = e.target || '';
   const unit = e.unit || '';
   const targetDays = e.targetDays || '';
-  const dayLabels = ['一','二','三','四','五','六','日'];
-  const dayBtns = dayLabels.map((l, i) =>
-    `<button type="button" class="hf-day-btn ${initialDays[i] ? 'on' : ''}" data-day="${i}" onclick="this.classList.toggle('on'); updateHfDayCount();">${l}</button>`
-  ).join('');
+  initHfWeeklyState(existing && existing.type === 'weekly' ? existing : null);
   document.getElementById('habit-form-slot').innerHTML = `
     <div class="inline-form">
       <div class="row">
@@ -2434,8 +2534,15 @@ function addHabitForm(existing) {
         </select>
 
         <div id="hf-weekly-slot" style="${type==='weekly' ? '' : 'display:none;'}">
-          <div class="hf-day-picker" id="hf-day-picker">${dayBtns}</div>
-          <div class="hf-day-count" id="hf-day-count">0 / 7 活跃</div>
+          <div class="hf-section" style="margin-top:0;">
+            <label class="hf-label">模式（每天可以选这些）</label>
+            <div id="hf-modes-list"></div>
+            <button type="button" class="hf-add-mode" onclick="addHfMode()">+ 新建模式</button>
+          </div>
+          <div class="hf-section">
+            <label class="hf-label" style="margin-top:6px;">一周排程（每天下拉选一个模式）</label>
+            <div id="hf-schedule-list"></div>
+          </div>
         </div>
 
         <div id="hf-goal-slot" style="${type==='goal' ? '' : 'display:none;'}">
@@ -2478,7 +2585,8 @@ function addHabitForm(existing) {
       </div>
     </div>
   `;
-  updateHfDayCount();
+  renderHfModes();
+  renderHfSchedule();
 }
 
 function hfTypeChanged() {
@@ -2496,6 +2604,104 @@ function updateHfDayCount() {
   if (el) el.textContent = `${on} / 7 活跃`;
 }
 
+/* === Weekly habit form: modes + schedule === */
+let hfWeeklyState = null;
+
+function initHfWeeklyState(existing) {
+  if (existing && Array.isArray(existing.weekSchedule) && Array.isArray(existing.modes) && existing.modes.length) {
+    hfWeeklyState = {
+      modes: existing.modes.map(m => ({ key: m.key, name: m.name, emoji: m.emoji, color: m.color })),
+      schedule: existing.weekSchedule.map(k => k || null),
+    };
+  } else if (existing && Array.isArray(existing.days)) {
+    // Legacy: convert active/inactive to 1 default mode
+    hfWeeklyState = {
+      modes: [{ key: 'active', name: '要做', emoji: '✓', color: 'indigo' }],
+      schedule: existing.days.map(d => d ? 'active' : null),
+    };
+  } else {
+    // Default for new weekly habit
+    hfWeeklyState = {
+      modes: [
+        { key: 'm1', name: '轻断食',   emoji: '🥗', color: 'pink' },
+        { key: 'm2', name: '健康饮食', emoji: '🍚', color: 'green' },
+      ],
+      schedule: ['m1', 'm2', 'm2', 'm1', 'm2', 'm2', 'm2'],
+    };
+  }
+}
+
+function renderHfModes() {
+  const el = document.getElementById('hf-modes-list');
+  if (!el || !hfWeeklyState) return;
+  if (hfWeeklyState.modes.length === 0) {
+    el.innerHTML = '<div class="hf-mode-empty">还没有模式 · 点下面"新建模式"加一个</div>';
+    return;
+  }
+  el.innerHTML = hfWeeklyState.modes.map((m, i) => `
+    <div class="hf-mode-row">
+      <input class="hf-mode-emoji" type="text" value="${escapeHtml(m.emoji)}" oninput="updateHfMode(${i},'emoji',this.value)" placeholder="emoji" maxlength="4" />
+      <input class="hf-mode-name"  type="text" value="${escapeHtml(m.name)}" oninput="updateHfMode(${i},'name',this.value)" placeholder="模式名（如：轻断食）" />
+      <select class="hf-mode-color" onchange="updateHfMode(${i},'color',this.value)">
+        <option value="pink"   ${m.color==='pink'   ? 'selected':''}>粉</option>
+        <option value="indigo" ${m.color==='indigo' ? 'selected':''}>蓝</option>
+        <option value="gold"   ${m.color==='gold'   ? 'selected':''}>金</option>
+        <option value="green"  ${m.color==='green'  ? 'selected':''}>绿</option>
+      </select>
+      <button type="button" class="hf-mode-del" onclick="removeHfMode(${i})" title="删除模式">×</button>
+    </div>
+  `).join('');
+}
+
+function renderHfSchedule() {
+  const el = document.getElementById('hf-schedule-list');
+  if (!el || !hfWeeklyState) return;
+  const dayLabels = ['一','二','三','四','五','六','日'];
+  el.innerHTML = dayLabels.map((l, i) => {
+    const modeKey = hfWeeklyState.schedule[i] || '';
+    const opts = '<option value="">未排程</option>' + hfWeeklyState.modes.map(m =>
+      `<option value="${escapeHtml(m.key)}" ${modeKey===m.key?'selected':''}>${escapeHtml(m.emoji)} ${escapeHtml(m.name)}</option>`
+    ).join('');
+    return `
+      <div class="hf-schedule-row">
+        <span class="hf-schedule-day">周${l}</span>
+        <select class="hf-schedule-select" onchange="setHfSchedule(${i},this.value)">${opts}</select>
+      </div>
+    `;
+  }).join('');
+}
+
+function addHfMode() {
+  if (!hfWeeklyState) return;
+  const newKey = 'm' + Date.now().toString(36);
+  hfWeeklyState.modes.push({ key: newKey, name: '新模式', emoji: '✨', color: 'indigo' });
+  renderHfModes();
+  renderHfSchedule();
+}
+
+function removeHfMode(i) {
+  if (!hfWeeklyState) return;
+  if (hfWeeklyState.modes.length <= 1) { toast('至少保留 1 个模式'); return; }
+  const removed = hfWeeklyState.modes[i];
+  hfWeeklyState.modes.splice(i, 1);
+  hfWeeklyState.schedule = hfWeeklyState.schedule.map(k => k === removed.key ? null : k);
+  renderHfModes();
+  renderHfSchedule();
+}
+
+function updateHfMode(i, field, value) {
+  if (!hfWeeklyState) return;
+  if (field === 'emoji' || field === 'name' || field === 'color') {
+    hfWeeklyState.modes[i][field] = value;
+  }
+  if (field === 'emoji' || field === 'name') renderHfSchedule();
+}
+
+function setHfSchedule(dayIdx, modeKey) {
+  if (!hfWeeklyState) return;
+  hfWeeklyState.schedule[dayIdx] = modeKey || null;
+}
+
 async function saveHabit(id) {
   const name = document.getElementById('hf-name').value.trim();
   const emoji = document.getElementById('hf-emoji').value.trim() || '✨';
@@ -2508,11 +2714,24 @@ async function saveHabit(id) {
     toast('结束日期不能早于开始'); return;
   }
 
-  let days;
+  let weekModes = null, weekSchedule = null;
   if (type === 'weekly') {
-    days = Array.from(document.querySelectorAll('#hf-day-picker .hf-day-btn'))
-      .map(b => b.classList.contains('on'));
-    if (!days.some(Boolean)) { toast('周节奏至少选一天'); return; }
+    if (!hfWeeklyState || hfWeeklyState.modes.length === 0) {
+      toast('请至少新建 1 个模式'); return;
+    }
+    if (hfWeeklyState.schedule.every(s => !s)) {
+      toast('请至少排程 1 天'); return;
+    }
+    // De-dupe mode keys just in case
+    const seenKeys = new Set();
+    weekModes = hfWeeklyState.modes.map(m => {
+      let k = m.key || ('m' + Date.now().toString(36) + Math.random().toString(36).slice(2,5));
+      while (seenKeys.has(k)) k = k + '_';
+      seenKeys.add(k);
+      return { key: k, name: m.name.trim() || '模式', emoji: m.emoji || '✨', color: m.color || 'indigo' };
+    });
+    const validKeys = new Set(weekModes.map(m => m.key));
+    weekSchedule = hfWeeklyState.schedule.map(k => (k && validKeys.has(k)) ? k : null);
   }
 
   let target = null, unit = null, targetDays = null, startTime = null, endTime = null;
@@ -2536,14 +2755,25 @@ async function saveHabit(id) {
     h.name = name; h.emoji = emoji; h.groupId = groupId;
     h.type = type;
     h.startDate = startDate; h.endDate = endDate;
-    if (type === 'weekly') h.days = days; else delete h.days;
+    if (type === 'weekly') {
+      h.modes = weekModes;
+      h.weekSchedule = weekSchedule;
+      delete h.days;   // remove legacy
+    } else {
+      delete h.days;
+      delete h.modes;
+      delete h.weekSchedule;
+    }
     h.target = target; h.unit = unit;
     h.targetDays = targetDays;
     h.startTime = startTime; h.endTime = endTime;
     await persistHabit(h);
   } else {
     const h = { id: 'h_' + Date.now(), name, emoji, groupId, type, startDate, endDate };
-    if (type === 'weekly') h.days = days;
+    if (type === 'weekly') {
+      h.modes = weekModes;
+      h.weekSchedule = weekSchedule;
+    }
     if (target != null) h.target = target;
     if (unit) h.unit = unit;
     if (targetDays) h.targetDays = targetDays;
