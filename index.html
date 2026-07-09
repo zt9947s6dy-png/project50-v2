@@ -1582,6 +1582,36 @@
     font-weight: 600;
     white-space: nowrap;
   }
+  .todo-moved-pill {
+    flex: none;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(127,176,105,0.22);
+    color: #4a6b3a;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  /* Toast */
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 84px;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(74,63,53,0.92);
+    color: white;
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-size: 13px;
+    z-index: 9999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    max-width: 86vw;
+    text-align: center;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.20);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .todo-overdue {
     background: #FFF3E0;
     min-height: 64px;
@@ -2119,8 +2149,8 @@ const renderGoaldayCard = (dateStr) => {
   if (longTerm.length) {
     sections.push(`
       <div class="goalday-section">
-        <div class="goalday-section-title">🌱 长期任务 (${longTerm.length})</div>
-        ${longTerm.slice(0, 4).map(t => `<div class="goalday-list-item"><span>🌱</span> ${escapeHtml(t.text)}</div>`).join('')}
+        <div class="goalday-section-title">🌿 不定时任务 (${longTerm.length})</div>
+        ${longTerm.slice(0, 4).map(t => `<div class="goalday-list-item"><span>🌿</span> ${escapeHtml(t.text)}</div>`).join('')}
         ${longTerm.length > 4 ? `<div class="goalday-list-overflow">还有 ${longTerm.length - 4} 项…</div>` : ''}
       </div>
     `);
@@ -2445,6 +2475,8 @@ async function loadState() {
   applyDateFromHash();
   // Migration: ensure todos have kind/targetDate/createdAt/tags
   await migrateTodos();
+  // Sweep: past-due undone todos auto-move to 不定时任务
+  await sweepOverdueTodos();
 }
 
 async function migrateTodos() {
@@ -2543,6 +2575,24 @@ async function persistHabit(habit) {
 async function persistGroup(group) {
   await dbPut('groups', group);
 }
+
+/* === Toast (transient message) === */
+let _toastTimer = null;
+const showToast = (msg, ms = 2600) => {
+  let el = document.getElementById('app-toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'app-toast';
+    el.className = 'toast';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  // force reflow then add class
+  void el.offsetWidth;
+  el.classList.add('show');
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { el.classList.remove('show'); }, ms);
+};
 
 /* === Todo query/sort/filter helpers === */
 const getActiveTodos = (date) => {
@@ -2645,6 +2695,48 @@ const addFarFutureTodo = () => {
   addTodo(text, { kind: 'far-future', targetDate });
   input.value = '';
   input.focus();
+};
+
+// Sweep: move all undone todos from past dates into 不定时任务（原 long-term）
+// Runs on app init and at the start of renderPlanning. Idempotent.
+const sweepOverdueTodos = async () => {
+  const todayStr = today();
+  let movedCount = 0;
+  const datesToPersist = new Set();
+  for (const [date, list] of Object.entries(state.todos)) {
+    if (date >= todayStr) continue; // skip today and future
+    const remaining = [];
+    for (const t of list) {
+      if (t.done) { remaining.push(t); continue; }
+      // Move to longTerm (now called "不定时任务"), preserving everything
+      const lt = {
+        id: 'lt_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7) + '_' + movedCount,
+        text: t.text,
+        priority: t.priority || 'normal',
+        done: false,
+        tags: t.tags || [],
+        longTerm: true,
+        movedFrom: date,             // remember original date for the "原定 XX-XX" pill
+        createdAt: t.createdAt || Date.now(),
+      };
+      state.longTermTodos.push(lt);
+      movedCount++;
+    }
+    if (remaining.length === 0) {
+      delete state.todos[date];
+    } else {
+      state.todos[date] = remaining;
+    }
+    datesToPersist.add(date);
+  }
+  for (const d of datesToPersist) {
+    try { await persistTodos(d); } catch (e) {}
+  }
+  if (movedCount > 0) {
+    try { await persistLongTermTodos(); } catch (e) {}
+    if (typeof showToast === 'function') showToast(`已把 ${movedCount} 项未完成任务移到「不定时任务」`);
+  }
+  return movedCount;
 };
 const toggleTodo = async (id) => {
   // Look up across all stores
@@ -3141,6 +3233,8 @@ function renderWeeklyHabit(h, g, c) {
 function renderPlanning() {
   const date = state.selectedDate;
   const todayD = today();
+  // Auto-sweep overdue todos on every planning render (idempotent)
+  sweepOverdueTodos();
   const dateHeroHtml = `
     <div class="date-header">
       <span class="date-label">📋 ${formatDate(date)} · ${formatRelativeDate(date)}</span>
@@ -3165,33 +3259,33 @@ function renderPlanning() {
     <div class="todos" id="todos-today">${todayTodos.length ? todayTodos.map(t => renderTodo(t, { compact: false })).join('') : '<div class="hint hint-inline">✨ 那天的你很轻松，没有待办</div>'}</div>
   `;
 
-  // Section 2: Long-term
+  // Section 2: 不定时任务（原长期任务）
   const longTermActive = filterTodosByTag(state.longTermTodos.filter(t => !t.done));
   const longTermSectionHtml = `
     <div class="section-block section-block-longterm">
-      <div class="section-title"><span>🌱 长期任务 · ${longTermActive.length}</span></div>
+      <div class="section-title"><span>🌿 不定时任务 · ${longTermActive.length}</span></div>
       <div class="quick-add compact" onclick="document.getElementById('lt-input')?.focus()">
-        <input type="text" class="quick-add-input" id="lt-input" placeholder="+ 添加长期任务…（回车保存）" onkeydown="if(event.key==='Enter'){addLongTermTodo();event.preventDefault();}" />
-        <button class="quick-add-btn" onclick="addLongTermTodo()" aria-label="添加长期任务">＋</button>
+        <input type="text" class="quick-add-input" id="lt-input" placeholder="+ 添加不定时任务…（回车保存）" onkeydown="if(event.key==='Enter'){addLongTermTodo();event.preventDefault();}" />
+        <button class="quick-add-btn" onclick="addLongTermTodo()" aria-label="添加不定时任务">＋</button>
       </div>
-      <div class="todos" id="todos-longterm">${longTermActive.map(t => renderTodo(t, { compact: true })).join('') || '<div class="hint hint-inline">🌱 还没有长期任务</div>'}</div>
+      <div class="todos" id="todos-longterm">${longTermActive.map(t => renderTodo(t, { compact: true })).join('') || '<div class="hint hint-inline">🌿 还没有不定时任务</div>'}</div>
     </div>
   `;
 
-  // Section 3: Far-future (cross-date scan; filtered to those with targetDate >= today OR past dates if filter on)
+  // Section 3: 定时任务（原远期任务）
   const allFarFuture = getFarFutureTodos()
     .filter(t => !t.done)
     .map(t => ({ ...t, _renderDate: t._targetDate }));  // preserve targetDate in render
   const farFutureFiltered = filterTodosByTag(allFarFuture);
   const farFutureSectionHtml = `
     <div class="section-block section-block-farfuture">
-      <div class="section-title"><span>🗓 远期任务 · ${farFutureFiltered.length}</span></div>
+      <div class="section-title"><span>⏰ 定时任务 · ${farFutureFiltered.length}</span></div>
       <div class="quick-add compact">
-        <input type="text" class="quick-add-input" id="ff-input" placeholder="+ 添加远期任务…" onkeydown="if(event.key==='Enter'){addFarFutureTodo();event.preventDefault();}" />
-        <input type="date" class="quick-add-date" id="ff-date" value="${today()}" min="${today()}" aria-label="远期任务日期" />
-        <button class="quick-add-btn" onclick="addFarFutureTodo()" aria-label="添加远期任务">＋</button>
+        <input type="text" class="quick-add-input" id="ff-input" placeholder="+ 添加定时任务…" onkeydown="if(event.key==='Enter'){addFarFutureTodo();event.preventDefault();}" />
+        <input type="date" class="quick-add-date" id="ff-date" value="${today()}" min="${today()}" aria-label="定时任务日期" />
+        <button class="quick-add-btn" onclick="addFarFutureTodo()" aria-label="添加定时任务">＋</button>
       </div>
-      <div class="todos" id="todos-farfuture">${farFutureFiltered.map(t => renderTodo(t, { compact: true, kind: 'far-future' })).join('') || '<div class="hint hint-inline">🗓 还没有远期任务</div>'}</div>
+      <div class="todos" id="todos-farfuture">${farFutureFiltered.map(t => renderTodo(t, { compact: true, kind: 'far-future' })).join('') || '<div class="hint hint-inline">⏰ 还没有定时任务</div>'}</div>
     </div>
   `;
 
@@ -3235,6 +3329,8 @@ function renderTodo(t, { compact = false, kind = null, completed = false } = {})
   const overdue = !t.done && effKind === 'far-future' && t._targetDate && t._targetDate < today();
   // For far-future compact section, attach targetDate
   const datePill = effKind === 'far-future' && t._targetDate ? `<span class="todo-date-pill">📅 ${formatDateShort(t._targetDate)}</span>` : '';
+  // For long-term items moved from a past date (auto-sweep)
+  const movedPill = t.movedFrom ? `<span class="todo-moved-pill" title="原定于 ${t.movedFrom}">原定 ${formatDateShort(t.movedFrom)}</span>` : '';
   const tagsHtml = (t.tags || []).length ? `<div class="todo-tags">${t.tags.map(tag => `<span class="todo-tag-chip">${escapeHtml(tag)}</span>`).join('')}</div>` : '';
   const overdueNote = overdue ? '<div class="todo-overdue-note">这事儿还在等你哦 ✿</div>' : '';
   const completedClass = t.done || completed ? 'done' : '';
@@ -3245,6 +3341,7 @@ function renderTodo(t, { compact = false, kind = null, completed = false } = {})
       <div class="todo-body" onclick="toggleTodo('${t.id}')">
         <div class="todo-row-main">
           ${datePill}
+          ${movedPill}
           <div class="todo-name">${escapeHtml(t.text)}</div>
         </div>
         ${overdueNote}
