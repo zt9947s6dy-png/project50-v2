@@ -1167,12 +1167,6 @@
     font-weight: 600;
   }
 
-  /* === Page wrapper (Phase 2/3 will use for 3D flip; placeholder for now) === */
-  .page {
-    position: relative;
-    perspective: 2000px;
-  }
-
   /* === Section blocks (4 sections, soft cards) === */
   .section-block {
     border-radius: var(--radius-md);
@@ -1290,6 +1284,47 @@
   .quick-add.compact .quick-add-input { height: 36px; font-size: 13px; }
   .quick-add.compact .quick-add-btn { height: 36px; width: 32px; font-size: 16px; }
   .quick-add.compact .quick-add-date { height: 36px; font-size: 12px; min-width: 120px; }
+
+  /* 统一添加框 — kind chip 选择器 */
+  .quick-add-chips {
+    display: flex;
+    gap: 6px;
+    margin: 0 0 8px;
+  }
+  .kind-chip {
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid var(--c-border);
+    background: var(--c-surface);
+    color: var(--c-text-muted);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .kind-chip:hover { background: var(--c-surface-alt); }
+  .kind-chip.active {
+    background: var(--c-primary);
+    color: white;
+    border-color: var(--c-primary);
+    font-weight: 700;
+  }
+  .quick-add-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .quick-add-date-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--c-text-muted);
+  }
+  .quick-add-date-label { white-space: nowrap; }
 
   /* === todo card variants === */
   /* === Goalday view (Phase 6) === */
@@ -1675,133 +1710,13 @@
     }
   }
 
-  /* === Journal page visual treatment (Phase 2 + 2.5) === */
+  /* === Page (simple card, no journal/book visual) === */
   .page {
-    background-color: var(--journal-paper);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.42 0 0 0 0 0.36 0 0 0 0 0.30 0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    background-blend-mode: multiply;
+    position: relative;
+    background: var(--c-surface);
     border-radius: var(--radius-lg);
-    box-shadow:
-      inset 6px 0 12px -6px rgba(74,63,53,0.10),
-      inset -6px 0 12px -6px rgba(74,63,53,0.10),
-      inset 0 0 80px rgba(74,63,53,0.10),     /* I · 纸张边缘渐晕 */
-      0 6px 24px rgba(74,63,53,0.10),
-      0 1px 0 rgba(255,255,255,0.50) inset;
     padding: 16px 18px 24px;
     margin-bottom: 16px;
-    transform-style: preserve-3d;
-    filter: sepia(var(--page-wear, 0));
-    transform-origin: 50% 50%;
-  }
-
-  /* A · 装订线 — 顶部 1px 渐变细线 */
-  .page::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 14px; right: 14px;
-    height: 1px;
-    background: linear-gradient(90deg, transparent 0%, rgba(74,63,53,0.22) 50%, transparent 100%);
-    pointer-events: none;
-  }
-
-  /* H · 装饰贴纸（4 角落 + 1 个装饰） */
-  .page::after {
-    content: '✦';
-    position: absolute;
-    top: 8px; left: 10px;
-    font-size: 14px;
-    opacity: 0.32;
-    color: var(--journal-stamp-red);
-    pointer-events: none;
-    z-index: 1;
-    transition: opacity 0.2s;
-  }
-  .page-decoration {
-    position: absolute;
-    font-size: 14px;
-    opacity: 0.30;
-    pointer-events: none;
-    z-index: 1;
-  }
-  .page-decoration.top-right { top: 12px; right: 18px; }
-  .page-decoration.bottom-right { bottom: 14px; right: 18px; }
-  .page-decoration.bottom-left { bottom: 14px; left: 18px; }
-
-  /* B · 折角 — 已翻过的 day 右上角三角 */
-  .page.flipped-before {
-    box-shadow:
-      inset 6px 0 12px -6px rgba(74,63,53,0.10),
-      inset -6px 0 12px -6px rgba(74,63,53,0.10),
-      inset 0 0 80px rgba(74,63,53,0.12),
-      0 6px 24px rgba(74,63,53,0.10);
-  }
-  .page.flipped-before::after {
-    content: '✦';
-    position: absolute;
-    top: 0; right: 0;
-    width: 32px; height: 32px;
-    background: linear-gradient(225deg, var(--c-bg) 50%, transparent 50%);
-    box-shadow: -2px 2px 4px rgba(0,0,0,0.08);
-    font-size: 0;
-    opacity: 1;
-  }
-
-  /* === Book-spread page-flip animation (Phase 5) === */
-  /* Two-page spread: old on left, new on right, both visible briefly, central spine */
-  .page-spread {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 4px minmax(0, 1fr);
-    align-items: stretch;
-    position: relative;
-    perspective: 1500px;
-    perspective-origin: 50% 50%;
-    overflow: hidden;
-  }
-  .page-spread-left, .page-spread-right {
-    position: relative;
-    overflow: hidden;
-    min-width: 0;  /* allow grid cell shrink */
-  }
-  .page-spread-left .page,
-  .page-spread-right .page {
-    width: 100%;
-  }
-  .page-spread-spine {
-    background: linear-gradient(180deg,
-      transparent 0%,
-      rgba(74,63,53,0.20) 20%,
-      rgba(74,63,53,0.55) 50%,
-      rgba(74,63,53,0.20) 80%,
-      transparent 100%);
-    box-shadow: 0 0 14px rgba(74,63,53,0.22), inset 0 0 4px rgba(0,0,0,0.10);
-    align-self: stretch;
-    position: relative;
-  }
-  /* Forward (going to LATER date): old slides LEFT out, new slides in from RIGHT */
-  .is-spread.fwd .page-spread-left  { animation: spreadPushLeftFwd  0.65s var(--easing-standard) forwards; }
-  .is-spread.fwd .page-spread-right { animation: spreadPullRightFwd 0.65s var(--easing-standard) forwards; }
-  @keyframes spreadPushLeftFwd {
-    0%   { transform: translateX(0); opacity: 1; filter: brightness(1); }
-    60%  { opacity: 0.45; }
-    100% { transform: translateX(-65%); opacity: 0; filter: brightness(0.85); }
-  }
-  @keyframes spreadPullRightFwd {
-    0%   { transform: translateX(65%); opacity: 0; filter: brightness(0.85); }
-    60%  { opacity: 0.55; }
-    100% { transform: translateX(0); opacity: 1; filter: brightness(1); }
-  }
-  /* Backward (going to EARLIER date): old slides RIGHT out, new slides in from LEFT */
-  .is-spread.bwd .page-spread-left  { animation: spreadPushRightBwd 0.65s var(--easing-standard) forwards; }
-  .is-spread.bwd .page-spread-right { animation: spreadPullLeftBwd  0.65s var(--easing-standard) forwards; }
-  @keyframes spreadPushRightBwd {
-    0%   { transform: translateX(0); opacity: 1; filter: brightness(1); }
-    60%  { opacity: 0.45; }
-    100% { transform: translateX(65%); opacity: 0; filter: brightness(0.85); }
-  }
-  @keyframes spreadPullLeftBwd {
-    0%   { transform: translateX(-65%); opacity: 0; filter: brightness(0.85); }
-    60%  { opacity: 0.55; }
-    100% { transform: translateX(0); opacity: 1; filter: brightness(1); }
   }
 
   /* === Stats card softened (Phase 2) === */
@@ -1933,11 +1848,13 @@ const state = {
   todos: {},      // { dateStr: [{ id, text, done, priority, kind, targetDate, createdAt, tags }] }
   longTermTodos: [],  // long-term tasks from 'todos-longterm' store
   selectedDate: today(),
+  todoDraftKind: 'daily',    // 当前添加框选中的类型：daily / long-term / far-future
+  todoDraftDate: today(),     // 定时任务的目标日期
   calendarMonth: today().slice(0, 7),
   currentTab: 'today',
   calendarView: 'month',  // 'week' | 'month'
   theme: 'auto',          // 'auto' | 'light' | 'dark'
-  flippedDays: new Set(),
+  flippedDays: new Set(),  // deprecated (book visual removed)
   completedCollapsed: true,
   tagFilter: null,        // selected tag chip filter (string) or null
   _booted: false,
@@ -2005,64 +1922,13 @@ const navigateDay = (delta) => {
   if (delta > 0 && newDateStr > today()) return;
   goToDate(newDateStr);
 };
-const goToDate = (dateStr, { animate = true } = {}) => {
+const goToDate = (dateStr) => {
   if (!dateStr) return;
   if (dateStr === state.selectedDate) return;
-  // Detect reduced motion
-  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const doAnimate = animate && !reduce;
-
-  const todayContent = document.getElementById('today-content');
-  const planningContent = document.getElementById('planning-content');
-  const todayPage = todayContent && todayContent.querySelector('.page');
-  const planningPage = planningContent && planningContent.querySelector('.page');
-
-  const isForward = dateStr > state.selectedDate;
-
-  // Update state first (so new render sees correct data, flippedDays, hash)
   state.selectedDate = dateStr;
-  state.flippedDays.add(dateStr);
-  try { localStorage.setItem('p50_flipped_days', JSON.stringify([...state.flippedDays])); } catch (e) {}
   syncDateHash();
-
-  // No animation path: just re-render
-  if (!doAnimate || (!todayPage && !planningPage)) {
-    renderToday();
-    renderPlanning();
-    return;
-  }
-
-  // === Book-spread animation path ===
-  // 1) Capture current page outerHTML (the "old")
-  const todayOldHtml = todayPage ? todayPage.outerHTML : '';
-  const planningOldHtml = planningPage ? planningPage.outerHTML : '';
-
-  // 2) Render the NEW pages (rebuilds #today-content and #planning-content)
   renderToday();
   renderPlanning();
-
-  // 3) Wrap as page-spread with old + new side-by-side, then animate
-  const ANIM_MS = 650;
-  const dir = isForward ? 'fwd' : 'bwd';
-
-  const animatePanel = (contentEl, oldHtml) => {
-    if (!contentEl || !oldHtml || !contentEl.innerHTML.trim()) return;
-    const newHtml = contentEl.innerHTML;
-    contentEl.innerHTML = `<div class="page-spread">
-      <div class="page-spread-left">${oldHtml}</div>
-      <div class="page-spread-spine"></div>
-      <div class="page-spread-right">${newHtml}</div>
-    </div>`;
-    contentEl.classList.add('is-spread', dir);
-    setTimeout(() => {
-      // After animation: restore single new page
-      contentEl.innerHTML = newHtml;
-      contentEl.classList.remove('is-spread', 'fwd', 'bwd');
-    }, ANIM_MS);
-  };
-
-  animatePanel(todayContent, todayOldHtml);
-  animatePanel(planningContent, planningOldHtml);
 };
 
 // Week progress: count todos created vs done within current week (Mon~today)
@@ -2345,8 +2211,6 @@ const closeGoaldayPickerToToday = () => {
 const goaldayJump = () => {
   if (goaldayCurrentDate) {
     state.selectedDate = goaldayCurrentDate;
-    state.flippedDays.add(goaldayCurrentDate);
-    try { localStorage.setItem('p50_flipped_days', JSON.stringify([...state.flippedDays])); } catch (e) {}
     syncDateHash();
     closeGoalday();
     switchTab('today');
@@ -2464,13 +2328,7 @@ async function loadState() {
   } catch (e) {
     state.longTermTodos = [];
   }
-  // Restore flipped days from localStorage
-  try {
-    const fd = JSON.parse(localStorage.getItem('p50_flipped_days') || '[]');
-    state.flippedDays = new Set(fd);
-  } catch (e) {
-    state.flippedDays = new Set();
-  }
+  // flippedDays removed (book visual gone)
   // Apply date from URL hash (if present)
   applyDateFromHash();
   // Migration: ensure todos have kind/targetDate/createdAt/tags
@@ -2636,12 +2494,13 @@ const toggleCompletedSection = () => {
   state.completedCollapsed = !state.completedCollapsed;
   renderPlanning();
 };
-// addTodo extended to support long-term / far-future (old signature: addTodo())
+// addTodo (unified): reads from the single top input + draft kind chip
 const addTodo = (textArg, opts = {}) => {
   const text = textArg || (document.getElementById('todo-input')?.value || '').trim();
   if (!text) return;
   const date = state.selectedDate;
-  const kind = opts.kind || 'daily';
+  // Read draft kind from state (or explicit opts.kind)
+  const kind = opts.kind || state.todoDraftKind || 'daily';
   if (kind === 'long-term') {
     const newT = {
       id: 'lt_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
@@ -2655,7 +2514,13 @@ const addTodo = (textArg, opts = {}) => {
     state.longTermTodos.push(newT);
     persistLongTermTodos();
   } else {
-    const targetDate = kind === 'far-future' ? (opts.targetDate || date) : date;
+    let targetDate = date;
+    if (kind === 'far-future') {
+      const dateInput = document.getElementById('ff-date');
+      const draftDate = (dateInput && dateInput.value) || state.todoDraftDate || date;
+      targetDate = opts.targetDate || draftDate;
+      if (state.todoDraftDate !== targetDate) state.todoDraftDate = targetDate;
+    }
     if (!state.todos[targetDate]) state.todos[targetDate] = [];
     state.todos[targetDate].push({
       id: 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
@@ -2674,27 +2539,14 @@ const addTodo = (textArg, opts = {}) => {
     if (input) input.value = '';
   }
   renderPlanning();
+  // Keep focus in the input for rapid entry
+  setTimeout(() => document.getElementById('todo-input')?.focus(), 0);
 };
-const addLongTermTodo = () => {
-  // Reuse addTodo via inline input
-  const input = document.getElementById('lt-input');
-  if (!input) return;
-  const text = input.value.trim();
-  if (!text) { input.focus(); return; }
-  addTodo(text, { kind: 'long-term' });
-  input.value = '';
-  input.focus();
-};
-const addFarFutureTodo = () => {
-  const input = document.getElementById('ff-input');
-  const dateInput = document.getElementById('ff-date');
-  if (!input || !dateInput) return;
-  const text = input.value.trim();
-  const targetDate = dateInput.value || today();
-  if (!text) { input.focus(); return; }
-  addTodo(text, { kind: 'far-future', targetDate });
-  input.value = '';
-  input.focus();
+
+const setTodoDraftKind = (kind) => {
+  state.todoDraftKind = kind;
+  renderPlanning();
+  setTimeout(() => document.getElementById('todo-input')?.focus(), 0);
 };
 
 // Sweep: move all undone todos from past dates into 不定时任务（原 long-term）
@@ -3027,12 +2879,8 @@ function renderToday() {
     `;
   }).join('');
 
-  const isFlippedBefore = state.flippedDays.has(date);
-  // C · 时间磨损 — sepia 程度按距离今天的天数
-  const diffDays = Math.abs(Math.round((new Date(date) - new Date(todayD)) / 86400000));
-  const wear = Math.min(1, diffDays / 30) * 0.18;
   document.getElementById('today-content').innerHTML = `
-    <div class="page today-page ${isFlippedBefore ? 'flipped-before' : ''}" id="today-page" data-date="${date}" style="--page-wear:${wear.toFixed(3)}">
+    <div class="page today-page" id="today-page" data-date="${date}">
       ${dateHeaderHtml}
       ${weekProgressHtml}
       <div class="stats-card">
@@ -3264,10 +3112,6 @@ function renderPlanning() {
   const longTermSectionHtml = `
     <div class="section-block section-block-longterm">
       <div class="section-title"><span>🌿 不定时任务 · ${longTermActive.length}</span></div>
-      <div class="quick-add compact" onclick="document.getElementById('lt-input')?.focus()">
-        <input type="text" class="quick-add-input" id="lt-input" placeholder="+ 添加不定时任务…（回车保存）" onkeydown="if(event.key==='Enter'){addLongTermTodo();event.preventDefault();}" />
-        <button class="quick-add-btn" onclick="addLongTermTodo()" aria-label="添加不定时任务">＋</button>
-      </div>
       <div class="todos" id="todos-longterm">${longTermActive.map(t => renderTodo(t, { compact: true })).join('') || '<div class="hint hint-inline">🌿 还没有不定时任务</div>'}</div>
     </div>
   `;
@@ -3280,11 +3124,6 @@ function renderPlanning() {
   const farFutureSectionHtml = `
     <div class="section-block section-block-farfuture">
       <div class="section-title"><span>⏰ 定时任务 · ${farFutureFiltered.length}</span></div>
-      <div class="quick-add compact">
-        <input type="text" class="quick-add-input" id="ff-input" placeholder="+ 添加定时任务…" onkeydown="if(event.key==='Enter'){addFarFutureTodo();event.preventDefault();}" />
-        <input type="date" class="quick-add-date" id="ff-date" value="${today()}" min="${today()}" aria-label="定时任务日期" />
-        <button class="quick-add-btn" onclick="addFarFutureTodo()" aria-label="添加定时任务">＋</button>
-      </div>
       <div class="todos" id="todos-farfuture">${farFutureFiltered.map(t => renderTodo(t, { compact: true, kind: 'far-future' })).join('') || '<div class="hint hint-inline">⏰ 还没有定时任务</div>'}</div>
     </div>
   `;
@@ -3303,17 +3142,32 @@ function renderPlanning() {
     </div>
   `;
 
-  const isFlippedBefore = state.flippedDays.has(date);
-  const diffDays = Math.abs(Math.round((new Date(date) - new Date(todayD)) / 86400000));
-  const wear = Math.min(1, diffDays / 30) * 0.18;
+  // 统一添加框：chip 选类型 + 文字输入 + 定时显示日期
+  const k = state.todoDraftKind || 'daily';
+  const quickAddHtml = `
+    <div class="quick-add" id="todo-quickadd">
+      <div class="quick-add-chips">
+        <button type="button" class="kind-chip ${k==='daily'?'active':''}" onclick="setTodoDraftKind('daily')">✅ 今日</button>
+        <button type="button" class="kind-chip ${k==='long-term'?'active':''}" onclick="setTodoDraftKind('long-term')">🌿 不定时</button>
+        <button type="button" class="kind-chip ${k==='far-future'?'active':''}" onclick="setTodoDraftKind('far-future')">⏰ 定时</button>
+      </div>
+      <div class="quick-add-row">
+        <input type="text" class="quick-add-input" id="todo-input" placeholder="+ 添加${k==='long-term'?'不定时':k==='far-future'?'定时':'今日'}任务…（回车保存）" onkeydown="if(event.key==='Enter'){addTodo();event.preventDefault();}" />
+        <button class="quick-add-btn" onclick="addTodo()" aria-label="添加任务">＋</button>
+      </div>
+      ${k==='far-future' ? `
+      <div class="quick-add-date-row">
+        <span class="quick-add-date-label">📅 定时到：</span>
+        <input type="date" class="quick-add-date" id="ff-date" value="${state.todoDraftDate || today()}" min="${today()}" onchange="state.todoDraftDate=this.value" />
+      </div>` : ''}
+    </div>
+  `;
+
   document.getElementById('planning-content').innerHTML = `
-    <div class="page planning-page ${isFlippedBefore ? 'flipped-before' : ''}" id="planning-page" data-date="${date}" style="--page-wear:${wear.toFixed(3)}">
+    <div class="page planning-page" id="planning-page" data-date="${date}">
       ${dateHeroHtml}
       ${chipsHtml}
-      <div class="quick-add">
-        <input type="text" class="quick-add-input" id="todo-input" placeholder="+ 添加今日任务…（回车保存）" onkeydown="if(event.key==='Enter'){addTodo();event.preventDefault();}" />
-        <button class="quick-add-btn" onclick="addTodo()" aria-label="添加今日任务">＋</button>
-      </div>
+      ${quickAddHtml}
       ${todaySectionHtml}
       ${longTermSectionHtml}
       ${farFutureSectionHtml}
