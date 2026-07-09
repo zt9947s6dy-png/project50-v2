@@ -8,13 +8,17 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Project 50">
 <title>Project 50 — 温柔推进的 50 天打卡日记</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=ZCOOL+XiaoWei&display=swap" rel="stylesheet">
 <style>
   /* === Reset === */
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   html { height: 100%; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
-    background: var(--c-bg);
+    background: radial-gradient(ellipse at 50% 0%, var(--journal-paper), var(--journal-paper-edge));
+    background-attachment: fixed;
     color: var(--c-text);
     line-height: 1.5;
     min-height: 100vh;
@@ -50,6 +54,16 @@
     --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
     --shadow-md: 0 4px 12px var(--c-shadow);
     --shadow-lg: 0 8px 24px var(--c-shadow);
+
+    /* Journal tokens */
+    --journal-paper: #FAF7F0;
+    --journal-paper-edge: #F5EFE2;
+    --journal-ink: #4A3F35;
+    --journal-ink-muted: #8B7E6E;
+    --journal-ruled: #E8DCC4;
+    --journal-washi-stripe: rgba(0,0,0,0.10);
+    --journal-stamp-red: #C44545;
+    --easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
   }
   [data-theme="dark"], :root.theme-dark {
     --c-primary: #8FB1D4;
@@ -70,6 +84,15 @@
     --c-border: #383D52;
     --c-backdrop: rgba(0, 0, 0, 0.6);
     --c-shadow: rgba(0,0,0,0.3);
+
+    /* Journal tokens (dark) */
+    --journal-paper: #2A2620;
+    --journal-paper-edge: #1F1B17;
+    --journal-ink: #E8DCC4;
+    --journal-ink-muted: #A89880;
+    --journal-ruled: #3A3328;
+    --journal-washi-stripe: rgba(255,255,255,0.10);
+    --journal-stamp-red: #D86565;
   }
   @media (prefers-color-scheme: dark) {
     :root:not(.theme-light) {
@@ -91,6 +114,15 @@
       --c-border: #383D52;
       --c-backdrop: rgba(0, 0, 0, 0.6);
       --c-shadow: rgba(0,0,0,0.3);
+
+      /* Journal tokens (auto-dark) */
+      --journal-paper: #2A2620;
+      --journal-paper-edge: #1F1B17;
+      --journal-ink: #E8DCC4;
+      --journal-ink-muted: #A89880;
+      --journal-ruled: #3A3328;
+      --journal-washi-stripe: rgba(255,255,255,0.10);
+      --journal-stamp-red: #D86565;
     }
   }
 
@@ -1077,6 +1109,379 @@
     40%  { transform: scale(1.04); }
     100% { transform: scale(1); }
   }
+
+  /* === Page-flip nav + 4-section journal (Phase 1) === */
+  .date-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 12px 0 14px;
+  }
+  .day-nav {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--c-border);
+    background: var(--c-surface);
+    color: var(--c-text-muted);
+    font-size: 14px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, color 0.15s, transform 0.1s;
+  }
+  .day-nav:hover:not(:disabled) { background: var(--c-surface-alt); color: var(--c-text); }
+  .day-nav:active:not(:disabled) { transform: scale(0.94); }
+  .day-nav:disabled { opacity: 0.32; cursor: not-allowed; }
+  .date-label {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--journal-ink, var(--c-text));
+    font-family: 'ZCOOL XiaoWei', "PingFang SC", sans-serif;
+    letter-spacing: 0.5px;
+  }
+  .stats-greeting { font-family: 'ZCOOL XiaoWei', "PingFang SC", sans-serif; }
+
+  /* === Week progress bar (D) === */
+  .week-progress {
+    position: relative;
+    height: 8px;
+    background: var(--c-surface-alt);
+    border-radius: 999px;
+    margin: 0 0 16px;
+    overflow: hidden;
+  }
+  .week-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--c-primary), var(--c-accent));
+    border-radius: 999px;
+    transition: width 0.4s ease;
+  }
+  .week-progress-label {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    color: var(--c-text-muted);
+    font-weight: 600;
+  }
+
+  /* === Page wrapper (Phase 2/3 will use for 3D flip; placeholder for now) === */
+  .page {
+    position: relative;
+    perspective: 2000px;
+  }
+
+  /* === Section blocks (4 sections, soft cards) === */
+  .section-block {
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    margin-top: 14px;
+  }
+  .section-block-longterm { background: rgba(127,176,105,0.18); }   /* soft green */
+  .section-block-farfuture { background: rgba(122,156,198,0.20); } /* soft indigo */
+  .section-block-completed { background: rgba(0,0,0,0.06); }       /* soft grey */
+  .section-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 4px 10px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--c-text);
+  }
+  .section-action {
+    font-size: 16px;
+    color: var(--c-text-muted);
+    cursor: pointer;
+    padding: 0 4px;
+    user-select: none;
+  }
+  .section-action:hover { color: var(--c-primary); }
+
+  /* Section toggle for completed */
+  .section-toggle {
+    width: 100%;
+    background: transparent;
+    border: none;
+    padding: 4px 0 10px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--c-text-muted);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  /* Inline hint within a section */
+  .hint-inline {
+    padding: 12px 4px;
+    font-size: 13px;
+    color: var(--c-text-muted);
+  }
+
+  /* === Tag chips (Label) === */
+  .tag-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding: 6px 0 14px;
+  }
+  .tag-chip {
+    border: 1px solid var(--c-border);
+    background: var(--c-surface);
+    color: var(--c-text-muted);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .tag-chip:hover { background: var(--c-surface-alt); }
+  .tag-chip.active { background: var(--c-primary); color: white; border-color: var(--c-primary); }
+
+  /* === quick-add inline + More button === */
+  .quick-add {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin: 0 0 14px;
+  }
+  .quick-add-input {
+    flex: 1;
+    height: 40px;
+    padding: 0 12px;
+    border-radius: 10px;
+    border: 1px solid var(--c-border);
+    background: var(--c-surface);
+    font-size: 14px;
+  }
+  .quick-add-btn {
+    width: 36px; height: 40px;
+    border-radius: 10px;
+    border: none;
+    background: var(--c-primary);
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+  }
+  .add-todo-more {
+    height: 40px;
+    padding: 0 12px;
+    border-radius: 10px;
+    border: 1px solid var(--c-border);
+    background: var(--c-surface);
+    color: var(--c-text-muted);
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  /* === todo card variants === */
+  .todo-compact { padding: 10px 12px; min-height: 40px; }
+  .todo-compact .todo-name { font-size: 13px; }
+  .todo-row-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .todo-date-pill {
+    flex: none;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(122,156,198,0.22);
+    color: var(--c-primary-dark, #5C7FA8);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .todo-overdue {
+    background: #FFF3E0;
+    min-height: 64px;
+    padding: 12px 12px;
+    border-radius: var(--radius-md);
+  }
+  .todo-overdue .todo-overdue-note {
+    font-family: 'ZCOOL XiaoWei', "PingFang SC", cursive;
+    font-style: italic;
+    font-size: 12px;
+    color: rgba(74,63,53,0.5);
+    margin-top: 4px;
+  }
+  .todo-tags {
+    margin-top: 4px;
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .todo-tag-chip {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgba(0,0,0,0.05);
+    color: var(--c-text-muted);
+  }
+  .todo-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .todo-restore {
+    color: var(--c-text-muted);
+    font-size: 14px;
+    padding: 4px;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.15s;
+  }
+  .todo-restore:hover { opacity: 1; }
+  .todo-delete {
+    color: var(--c-text-muted);
+    font-size: 16px;
+    padding: 4px;
+    cursor: pointer;
+    opacity: 0.4;
+  }
+  .todo-delete:hover { opacity: 1; color: var(--c-accent-dark); }
+
+  /* === Swipe states === */
+  .todo.swiping-left { box-shadow: inset 4px 0 0 var(--c-primary), 0 0 12px rgba(122,156,198,0.18); transition: transform 0.18s ease, box-shadow 0.18s ease; }
+  .todo.swiping-right { box-shadow: inset 4px 0 0 var(--c-accent), 0 0 12px rgba(242,168,176,0.18); transition: transform 0.18s ease, box-shadow 0.18s ease; }
+  .todo { transition: transform 0.18s ease; }
+
+  /* === prefers-reduced-motion === */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* === Journal page visual treatment (Phase 2 + 2.5) === */
+  .page {
+    background-color: var(--journal-paper);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.42 0 0 0 0 0.36 0 0 0 0 0.30 0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-blend-mode: multiply;
+    border-radius: var(--radius-lg);
+    box-shadow:
+      inset 6px 0 12px -6px rgba(74,63,53,0.10),
+      inset -6px 0 12px -6px rgba(74,63,53,0.10),
+      inset 0 0 80px rgba(74,63,53,0.10),     /* I · 纸张边缘渐晕 */
+      0 6px 24px rgba(74,63,53,0.10),
+      0 1px 0 rgba(255,255,255,0.50) inset;
+    padding: 16px 18px 24px;
+    margin-bottom: 16px;
+    transform-style: preserve-3d;
+    filter: sepia(var(--page-wear, 0));
+    transform-origin: 50% 50%;
+  }
+
+  /* A · 装订线 — 顶部 1px 渐变细线 */
+  .page::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 14px; right: 14px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(74,63,53,0.22) 50%, transparent 100%);
+    pointer-events: none;
+  }
+
+  /* H · 装饰贴纸（4 角落 + 1 个装饰） */
+  .page::after {
+    content: '✦';
+    position: absolute;
+    top: 8px; left: 10px;
+    font-size: 14px;
+    opacity: 0.32;
+    color: var(--journal-stamp-red);
+    pointer-events: none;
+    z-index: 1;
+    transition: opacity 0.2s;
+  }
+  .page-decoration {
+    position: absolute;
+    font-size: 14px;
+    opacity: 0.30;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .page-decoration.top-right { top: 12px; right: 18px; }
+  .page-decoration.bottom-right { bottom: 14px; right: 18px; }
+  .page-decoration.bottom-left { bottom: 14px; left: 18px; }
+
+  /* B · 折角 — 已翻过的 day 右上角三角 */
+  .page.flipped-before {
+    box-shadow:
+      inset 6px 0 12px -6px rgba(74,63,53,0.10),
+      inset -6px 0 12px -6px rgba(74,63,53,0.10),
+      inset 0 0 80px rgba(74,63,53,0.12),
+      0 6px 24px rgba(74,63,53,0.10);
+  }
+  .page.flipped-before::after {
+    content: '✦';
+    position: absolute;
+    top: 0; right: 0;
+    width: 32px; height: 32px;
+    background: linear-gradient(225deg, var(--c-bg) 50%, transparent 50%);
+    box-shadow: -2px 2px 4px rgba(0,0,0,0.08);
+    font-size: 0;
+    opacity: 1;
+  }
+
+  /* === 3D page-flip animations (Phase 2) === */
+  .page.flipping-out-next { animation: pageOutNext 0.45s var(--easing-standard) forwards; }
+  .page.flipping-out-prev { animation: pageOutPrev 0.45s var(--easing-standard) forwards; }
+  .page.flipping-in-next  { animation: pageInNext 0.45s var(--easing-standard) forwards; }
+  .page.flipping-in-prev  { animation: pageInPrev 0.45s var(--easing-standard) forwards; }
+  @keyframes pageOutNext {
+    0%   { transform: rotateY(0deg); }
+    100% { transform: rotateY(-180deg); }
+  }
+  @keyframes pageOutPrev {
+    0%   { transform: rotateY(0deg); }
+    100% { transform: rotateY(180deg); }
+  }
+  @keyframes pageInNext {
+    0%   { transform: rotateY(180deg); }
+    100% { transform: rotateY(0deg); }
+  }
+  @keyframes pageInPrev {
+    0%   { transform: rotateY(-180deg); }
+    100% { transform: rotateY(0deg); }
+  }
+
+  /* === Stats card softened (Phase 2) === */
+  .stats-card {
+    background: linear-gradient(135deg, #FBF6E9 0%, #FCE3E6 100%) !important;
+    color: var(--journal-ink) !important;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  [data-theme="dark"] .stats-card,
+  :root.theme-dark .stats-card {
+    background: linear-gradient(135deg, #3A2E27 0%, #4A2E33 100%) !important;
+    color: var(--journal-ink) !important;
+  }
+
+  /* === Done stamp (Caveat) === */
+  .stamp {
+    display: inline-block;
+    font-family: 'Caveat', cursive;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--journal-stamp-red);
+    border: 2px solid var(--journal-stamp-red);
+    border-radius: 50%;
+    padding: 2px 10px;
+    transform: rotate(-8deg);
+    opacity: 0.78;
+    margin-left: 8px;
+    pointer-events: none;
+  }
+  .habit-stamp { display: inline-block; margin-left: 6px; }
+  .habit-stamp .stamp { font-size: 13px; padding: 1px 8px; }
 </style>
 </head>
 <body>
@@ -1172,12 +1577,16 @@ const state = {
   groups: [],
   habits: [],
   checkIns: {},   // { dateStr: { habitId: { checked, time, value } } }
-  todos: {},      // { dateStr: [{ id, text, done, priority, createdAt }] }
+  todos: {},      // { dateStr: [{ id, text, done, priority, kind, targetDate, createdAt, tags }] }
+  longTermTodos: [],  // long-term tasks from 'todos-longterm' store
   selectedDate: today(),
   calendarMonth: today().slice(0, 7),
   currentTab: 'today',
   calendarView: 'month',  // 'week' | 'month'
   theme: 'auto',          // 'auto' | 'light' | 'dark'
+  flippedDays: new Set(),
+  completedCollapsed: true,
+  tagFilter: null,        // selected tag chip filter (string) or null
   _booted: false,
 };
 
@@ -1201,9 +1610,130 @@ const SEED = {
   ],
 };
 
-/* === IndexedDB v2 === */
+/* === Date helpers (page-flip navigation) === */
+const formatRelativeDate = (dateStr) => {
+  if (!dateStr) return '';
+  if (dateStr === today()) return '今天';
+  const todayD = new Date(today());
+  const targetD = new Date(dateStr);
+  const diffDays = Math.round((targetD - todayD) / (1000 * 60 * 60 * 24));
+  if (diffDays === -1) return '昨天';
+  if (diffDays === 1) return '明天';
+  if (diffDays < 0) return `${Math.abs(diffDays)} 天前`;
+  if (diffDays > 0 && diffDays <= 7) return `${diffDays} 天后`;
+  return formatDate(dateStr);
+};
+const dateToHash = (dateStr) => dateStr; // YYYY-MM-DD already hash-safe
+const hashToDate = (str) => {
+  if (!str || !/^\d{4}-\d{2}-\d{2}$/.test(str)) return null;
+  return str;
+};
+const syncDateHash = () => {
+  const newHash = `#date=${state.selectedDate}`;
+  if (location.hash !== newHash) {
+    history.replaceState(null, '', newHash);
+  }
+};
+const applyDateFromHash = () => {
+  const m = (location.hash || '').match(/date=(\d{4}-\d{2}-\d{2})/);
+  if (m) {
+    const hashDate = hashToDate(m[1]);
+    // Don't go to future
+    if (hashDate && hashDate <= today()) state.selectedDate = hashDate;
+  }
+};
+const navigateDay = (delta) => {
+  const cur = state.selectedDate;
+  const curD = new Date(cur);
+  const newD = new Date(curD);
+  newD.setDate(newD.getDate() + delta);
+  const newDateStr = `${newD.getFullYear()}-${String(newD.getMonth() + 1).padStart(2, '0')}-${String(newD.getDate()).padStart(2, '0')}`;
+  // Forward clamped to today
+  if (delta > 0 && newDateStr > today()) return;
+  goToDate(newDateStr);
+};
+const goToDate = (dateStr, { animate = true } = {}) => {
+  if (!dateStr) return;
+  if (dateStr === state.selectedDate) return;
+  // Detect reduced motion
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const doAnimate = animate && !reduce;
+
+  const todayPage = document.getElementById('today-page');
+  const planningPage = document.getElementById('planning-page');
+  const isForward = dateStr > state.selectedDate;
+
+  if (!doAnimate || (!todayPage && !planningPage)) {
+    state.selectedDate = dateStr;
+    state.flippedDays.add(dateStr);
+    localStorage.setItem('p50_flipped_days', JSON.stringify([...state.flippedDays]));
+    syncDateHash();
+    renderToday();
+    renderPlanning();
+    return;
+  }
+
+  // Animate: out -> swap content -> in
+  const outClass = isForward ? 'flipping-out-next' : 'flipping-out-prev';
+  const inClass  = isForward ? 'flipping-in-next'  : 'flipping-in-prev';
+  if (todayPage) todayPage.classList.add(outClass);
+  if (planningPage) planningPage.classList.add(outClass);
+
+  setTimeout(() => {
+    state.selectedDate = dateStr;
+    state.flippedDays.add(dateStr);
+    localStorage.setItem('p50_flipped_days', JSON.stringify([...state.flippedDays]));
+    syncDateHash();
+    renderToday();
+    renderPlanning();
+    // Set the new page to start flipped-in
+    const tp2 = document.getElementById('today-page');
+    const pp2 = document.getElementById('planning-page');
+    if (tp2) { tp2.classList.add(inClass); tp2.addEventListener('animationend', () => tp2.classList.remove(inClass), { once: true }); }
+    if (pp2) { pp2.classList.add(inClass); pp2.addEventListener('animationend', () => pp2.classList.remove(inClass), { once: true }); }
+  }, 220); // Halfway through 0.45s animation, swap content
+};
+
+// Week progress: count todos created vs done within current week (Mon~today)
+const computeWeekProgress = (refDate) => {
+  const ref = new Date(refDate);
+  // Start of week (Mon) in local time
+  const dow = (ref.getDay() + 6) % 7; // 0=Mon, 6=Sun
+  const monday = new Date(ref);
+  monday.setDate(ref.getDate() - dow);
+  const mondayStr = `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
+  const todayStr = refDate > today() ? today() : refDate;
+  let total = 0, done = 0;
+  let cur = new Date(mondayStr);
+  const end = new Date(todayStr);
+  while (cur <= end) {
+    const curStr = `${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}-${String(cur.getDate()).padStart(2,'0')}`;
+    const list = state.todos[curStr] || [];
+    list.forEach(t => {
+      // Skip long-term (those are in longTermTodos)
+      if (t.kind === 'long-term') return;
+      total++;
+      if (t.done) done++;
+    });
+    cur.setDate(cur.getDate() + 1);
+  }
+  // Include far-future this week (targetDate within this week, today <= targetDate)
+  Object.entries(state.todos).forEach(([date, list]) => {
+    list.forEach(t => {
+      if (t.kind !== 'far-future') return;
+      if (date >= mondayStr && date <= todayStr) {
+        total++;
+        if (t.done) done++;
+      }
+    });
+  });
+  const percent = total ? Math.round(done / total * 100) : 0;
+  return { done, total, percent };
+};
+
+/* === IndexedDB v3 === */
 const DB_NAME = 'project50';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -1215,6 +1745,7 @@ function openDB() {
       if (!db.objectStoreNames.contains('checkIns')) db.createObjectStore('checkIns', { keyPath: 'date' });
       if (!db.objectStoreNames.contains('todos'))    db.createObjectStore('todos',    { keyPath: 'date' });
       if (!db.objectStoreNames.contains('meta'))     db.createObjectStore('meta',     { keyPath: 'key' });
+      if (!db.objectStoreNames.contains('todos-longterm')) db.createObjectStore('todos-longterm', { keyPath: 'id' });
       if (e.oldVersion < 2 && db.objectStoreNames.contains('journal')) {
         db.deleteObjectStore('journal');
       }
@@ -1280,6 +1811,62 @@ async function loadState() {
   checkInsArr.forEach(c => state.checkIns[c.date] = c.data || {});
   state.todos = {};
   todosArr.forEach(t => state.todos[t.date] = t.data || []);
+  // Load long-term todos from independent store
+  try {
+    const ltAll = await dbGetAll('todos-longterm');
+    state.longTermTodos = ltAll || [];
+  } catch (e) {
+    state.longTermTodos = [];
+  }
+  // Restore flipped days from localStorage
+  try {
+    const fd = JSON.parse(localStorage.getItem('p50_flipped_days') || '[]');
+    state.flippedDays = new Set(fd);
+  } catch (e) {
+    state.flippedDays = new Set();
+  }
+  // Apply date from URL hash (if present)
+  applyDateFromHash();
+  // Migration: ensure todos have kind/targetDate/createdAt/tags
+  await migrateTodos();
+}
+
+async function migrateTodos() {
+  try {
+    const flag = await dbGet('meta', 'todo_migration_v3');
+    if (flag) return;
+  } catch (e) {
+    // meta entry not found; run migration
+  }
+  let dirty = false;
+  Object.entries(state.todos).forEach(([date, list]) => {
+    list.forEach(t => {
+      if (t.kind == null) { t.kind = 'daily'; dirty = true; }
+      if (t.targetDate == null) { t.targetDate = date; dirty = true; }
+      if (t.createdAt == null) { t.createdAt = Date.now(); dirty = true; }
+      if (t.tags == null) { t.tags = []; dirty = true; }
+    });
+  });
+  if (dirty) {
+    for (const [date, list] of Object.entries(state.todos)) {
+      await dbPut('todos', { date, data: list });
+    }
+  }
+  state.longTermTodos.forEach(t => {
+    if (t.longTerm !== true) { t.longTerm = true; dirty = true; }
+    if (t.createdAt == null) { t.createdAt = Date.now(); dirty = true; }
+    if (t.tags == null) { t.tags = []; dirty = true; }
+    if (t.priority == null) { t.priority = 'normal'; dirty = true; }
+    if (t.done == null) { t.done = false; dirty = true; }
+  });
+  if (dirty) {
+    for (const t of state.longTermTodos) {
+      await dbPut('todos-longterm', t);
+    }
+  }
+  try {
+    await dbPut('meta', { key: 'todo_migration_v3', at: Date.now() });
+  } catch (e) {}
 }
 
 async function persistCheckIns(date) {
@@ -1288,12 +1875,218 @@ async function persistCheckIns(date) {
 async function persistTodos(date) {
   await dbPut('todos', { date, data: state.todos[date] || [] });
 }
+
+// Daily todo rollover: unfinished past-due dailies shift to today so they never silently disappear.
+// Run once per app launch.
+async function rolloverIncompleteTodos() {
+  const todayD = today();
+  if (!todayD) return;
+  const toMove = [];
+  Object.entries(state.todos).forEach(([date, list]) => {
+    if (date >= todayD) return;
+    list.forEach(t => {
+      if (t.done) return;
+      // Daily only (don't touch far-future which already has explicit targetDate)
+      const kind = t.kind == null ? 'daily' : t.kind;
+      if (kind !== 'daily') return;
+      toMove.push({ date, todo: t });
+    });
+  });
+  if (toMove.length === 0) return;
+  // Apply: splice from source, push to today
+  const affected = new Set();
+  for (const { date, todo } of toMove) {
+    const list = state.todos[date];
+    if (!list) continue;
+    const idx = list.findIndex(x => x.id === todo.id);
+    if (idx !== -1) list.splice(idx, 1);
+    todo.targetDate = todayD;
+    if (!state.todos[todayD]) state.todos[todayD] = [];
+    state.todos[todayD].push(todo);
+    affected.add(date);
+    affected.add(todayD);
+  }
+  for (const d of affected) {
+    await persistTodos(d);
+  }
+}
+async function persistLongTermTodos() {
+  // Bulk-write all long-term todos (simpler; small list)
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('todos-longterm', 'readwrite');
+    tx.objectStore('todos-longterm').clear();
+    state.longTermTodos.forEach(t => tx.objectStore('todos-longterm').put(t));
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
 async function persistHabit(habit) {
   await dbPut('habits', habit);
 }
 async function persistGroup(group) {
   await dbPut('groups', group);
 }
+
+/* === Todo query/sort/filter helpers === */
+const getActiveTodos = (date) => {
+  // Daily: state.todos[date] (kind='daily' OR no kind field)
+  const daily = (state.todos[date] || []).filter(t => !t.done && (t.kind === 'daily' || t.kind == null));
+  // Far-future surfaced: from any date key, where targetDate == current viewing date and not done
+  const surfaced = Object.entries(state.todos)
+    .flatMap(([d, list]) => list.filter(t => !t.done && t.kind === 'far-future' && d === date));
+  return [...daily, ...surfaced];
+};
+const getLongTermTodos = () => state.longTermTodos || [];
+const getFarFutureTodos = () => {
+  // Cross-date scan; keep targetDate for render
+  return Object.entries(state.todos).flatMap(([d, list]) =>
+    list.filter(t => t.kind === 'far-future').map(t => ({ ...t, _targetDate: d }))
+  ).sort((a, b) => (a._targetDate || '').localeCompare(b._targetDate || ''));
+};
+const getCompletedTodos = () => {
+  // Done from daily/far-future todos + done long-term tasks
+  const doneDaily = Object.entries(state.todos).flatMap(([d, list]) =>
+    list.filter(t => t.done).map(t => ({ ...t, _targetDate: d, _completedAt: t.doneAt || t.doneTimestamp || null }))
+  );
+  const doneLong = (state.longTermTodos || []).filter(t => t.done).map(t => ({ ...t, _targetDate: null, kind: 'long-term' }));
+  return [...doneDaily, ...doneLong].sort((a, b) => (b._completedAt || 0) - (a._completedAt || 0));
+};
+const getAllTags = () => {
+  const set = new Set();
+  Object.values(state.todos).forEach(list => list.forEach(t => (t.tags || []).forEach(tag => set.add(tag))));
+  (state.longTermTodos || []).forEach(t => (t.tags || []).forEach(tag => set.add(tag)));
+  return Array.from(set);
+};
+const filterTodosByTag = (todos) => {
+  if (!state.tagFilter) return todos;
+  return todos.filter(t => (t.tags || []).includes(state.tagFilter));
+};
+const setTagFilter = (tag) => {
+  state.tagFilter = tag;
+  renderPlanning();
+};
+const toggleCompletedSection = () => {
+  state.completedCollapsed = !state.completedCollapsed;
+  renderPlanning();
+};
+// addTodo extended to support long-term / far-future (old signature: addTodo())
+const addTodo = (textArg, opts = {}) => {
+  const text = textArg || (document.getElementById('todo-input')?.value || '').trim();
+  if (!text) return;
+  const date = state.selectedDate;
+  const kind = opts.kind || 'daily';
+  if (kind === 'long-term') {
+    const newT = {
+      id: 'lt_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      text,
+      priority: opts.priority || 'normal',
+      done: false,
+      tags: opts.tags || [],
+      longTerm: true,
+      createdAt: Date.now(),
+    };
+    state.longTermTodos.push(newT);
+    persistLongTermTodos();
+  } else {
+    const targetDate = kind === 'far-future' ? (opts.targetDate || date) : date;
+    if (!state.todos[targetDate]) state.todos[targetDate] = [];
+    state.todos[targetDate].push({
+      id: 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      text,
+      priority: opts.priority || 'normal',
+      done: false,
+      tags: opts.tags || [],
+      kind,
+      targetDate,
+      createdAt: Date.now(),
+    });
+    persistTodos(targetDate);
+  }
+  if (!textArg) {
+    const input = document.getElementById('todo-input');
+    if (input) input.value = '';
+  }
+  renderPlanning();
+};
+const addLongTermTodo = () => {
+  // Reuse addTodo via prompt-style input
+  const text = prompt('🌱 新长期任务：');
+  if (text && text.trim()) addTodo(text.trim(), { kind: 'long-term' });
+};
+const openAddTodoSheet = () => {
+  // Lightweight sheet for the +More button. Phase 1 minimum:
+  // Just prompt for text + kind. Tag support deferred to v2.
+  const text = prompt('✚ 新任务（输入文字）；之后选类型：1=今日 / 2=长期 / 3=远期（输入数字）');
+  if (!text || !text.trim()) return;
+  const choice = prompt('类型：1=今日, 2=长期, 3=远期（输入日期 YYYY-MM-DD）', '1');
+  if (choice === '2') {
+    addTodo(text.trim(), { kind: 'long-term' });
+  } else if (choice && choice.length > 1 && choice.includes('-')) {
+    addTodo(text.trim(), { kind: 'far-future', targetDate: choice.trim() });
+  } else {
+    addTodo(text.trim(), { kind: 'daily' });
+  }
+};
+const toggleTodo = async (id) => {
+  // Look up across all stores
+  for (const [date, list] of Object.entries(state.todos)) {
+    const t = list.find(x => x.id === id);
+    if (t) {
+      t.done = !t.done;
+      if (t.done) t.doneAt = Date.now();
+      await persistTodos(date);
+      renderPlanning();
+      return;
+    }
+  }
+  const lt = state.longTermTodos.find(x => x.id === id);
+  if (lt) {
+    lt.done = !lt.done;
+    if (lt.done) lt.doneAt = Date.now();
+    await persistLongTermTodos();
+    renderPlanning();
+    return;
+  }
+};
+const deleteTodo = async (id) => {
+  for (const [date, list] of Object.entries(state.todos)) {
+    const idx = list.findIndex(x => x.id === id);
+    if (idx !== -1) {
+      list.splice(idx, 1);
+      await persistTodos(date);
+      renderPlanning();
+      return;
+    }
+  }
+  const idx = state.longTermTodos.findIndex(x => x.id === id);
+  if (idx !== -1) {
+    state.longTermTodos.splice(idx, 1);
+    await persistLongTermTodos();
+    renderPlanning();
+    return;
+  }
+};
+const restoreTodo = async (id) => {
+  for (const [date, list] of Object.entries(state.todos)) {
+    const t = list.find(x => x.id === id);
+    if (t) {
+      t.done = false;
+      t.doneAt = null;
+      await persistTodos(date);
+      renderPlanning();
+      return;
+    }
+  }
+  const lt = state.longTermTodos.find(x => x.id === id);
+  if (lt) {
+    lt.done = false;
+    lt.doneAt = null;
+    await persistLongTermTodos();
+    renderPlanning();
+    return;
+  }
+};
 
 /* === Date range helpers === */
 function isHabitActiveOn(h, dateStr) {
@@ -1476,10 +2269,33 @@ function celebrate(targetEl) {
 
 /* === Render: Today === */
 function renderToday() {
-  const date = today();
+  const date = state.selectedDate || today();
   const checks = state.checkIns[date] || {};
-  const stats = todayStats();
+  const todayD = today();
+  // Compute stats for selected date (re-use todayStats for "today" only)
+  const isSelToday = date === todayD;
+  const stats = isSelToday ? todayStats() : (() => {
+    const list = Object.values(checks).filter(Boolean);
+    const done = list.filter(c => c.checked).length;
+    const total = state.habits.length;
+    return { done, total, percent: total ? Math.round(done / total * 100) : 0 };
+  })();
   const cum = cumulativeStats();
+
+  const dateHeaderHtml = `
+    <div class="date-header">
+      <button class="day-nav prev" onclick="navigateDay(-1)" aria-label="前一天">◀</button>
+      <span class="date-label">📅 ${formatDate(date)} · ${formatRelativeDate(date)}</span>
+      <button class="day-nav next" onclick="navigateDay(1)" ${date >= todayD ? 'disabled' : ''} aria-label="后一天">▶</button>
+    </div>
+  `;
+  const wp = computeWeekProgress(date);
+  const weekProgressHtml = `
+    <div class="week-progress" aria-label="本周完成进度">
+      <div class="week-progress-fill" style="width:${wp.percent}%"></div>
+      <div class="week-progress-label">本周 ${wp.done} / ${wp.total}</div>
+    </div>
+  `;
 
   const groupsHtml = state.groups.map(g => {
     const habits = habitsByGroup(g.id).filter(h => isHabitActiveOn(h, date));
@@ -1503,27 +2319,37 @@ function renderToday() {
     `;
   }).join('');
 
+  const isFlippedBefore = state.flippedDays.has(date);
+  // C · 时间磨损 — sepia 程度按距离今天的天数
+  const diffDays = Math.abs(Math.round((new Date(date) - new Date(todayD)) / 86400000));
+  const wear = Math.min(1, diffDays / 30) * 0.18;
   document.getElementById('today-content').innerHTML = `
-    <div class="stats-card">
-      <div class="stats-greeting">${greeting()} ☀️</div>
-      <div class="stats-summary">今天完成了 ${stats.done} / ${stats.total} 件 💛</div>
-      <div class="stats-bar"><div class="stats-bar-fill" style="width:${stats.percent}%"></div></div>
-      <div class="stats-numbers">
-        <div class="stats-num"><div class="stats-num-value">${cum.totalDays}</div><div class="stats-num-label">累计天数</div></div>
-        <div class="stats-num"><div class="stats-num-value">${cum.totalChecks}</div><div class="stats-num-label">总打卡</div></div>
-        <div class="stats-num"><div class="stats-num-value">${cum.maxStreak}</div><div class="stats-num-label">最长连续</div></div>
+    <div class="page today-page ${isFlippedBefore ? 'flipped-before' : ''}" id="today-page" data-date="${date}" style="--page-wear:${wear.toFixed(3)}">
+      <span class="page-decoration top-right">🌸</span>
+      <span class="page-decoration bottom-right">🎀</span>
+      ${dateHeaderHtml}
+      ${weekProgressHtml}
+      <div class="stats-card">
+        <div class="stats-greeting">${greeting()} ☀️</div>
+        <div class="stats-summary">📅 ${formatRelativeDate(date)} · 完成 ${stats.done} / ${stats.total} 件 💛</div>
+        <div class="stats-bar"><div class="stats-bar-fill" style="width:${stats.percent}%"></div></div>
+        <div class="stats-numbers">
+          <div class="stats-num"><div class="stats-num-value">${cum.totalDays}</div><div class="stats-num-label">累计天数</div></div>
+          <div class="stats-num"><div class="stats-num-value">${cum.totalChecks}</div><div class="stats-num-label">总打卡</div></div>
+          <div class="stats-num"><div class="stats-num-value">${cum.maxStreak}</div><div class="stats-num-label">最长连续</div></div>
+        </div>
       </div>
-    </div>
-    ${groupsHtml}
-    <div class="shortcut" onclick="openManageModal()">
-      <div class="shortcut-emoji">📋</div>
-      <div class="shortcut-body">
-        <div class="shortcut-title">管理项目</div>
-        <div class="shortcut-sub">长按任一项目也能快速管理 · 点击进入</div>
+      ${groupsHtml}
+      <div class="shortcut" onclick="openManageModal()">
+        <div class="shortcut-emoji">📋</div>
+        <div class="shortcut-body">
+          <div class="shortcut-title">管理项目</div>
+          <div class="shortcut-sub">长按任一项目也能快速管理 · 点击进入</div>
+        </div>
+        <div class="shortcut-arrow">›</div>
       </div>
-      <div class="shortcut-arrow">›</div>
+      <div class="hint">💛 错过也没关系 — 明天打开又是新的一天</div>
     </div>
-    <div class="hint">💛 错过也没关系 — 明天打开又是新的一天</div>
   `;
 }
 
@@ -1553,6 +2379,7 @@ function renderDailyHabit(h, g, c) {
     ? `<div class="habit-progress"><div class="habit-progress-fill" style="width:${Math.round(ratio*100)}%"></div></div>
        <div class="habit-progress-text">${value ? value : 0} / ${h.target}${h.unit || ''}</div>`
     : (h.unit ? `<div class="habit-desc">单位 ${h.unit} · 点击打卡</div>` : `<div class="habit-desc">点击打卡</div>`);
+  const stampHtml = checked ? `<div class="habit-stamp"><span class="stamp">✓ done</span></div>` : '';
   return `
     <div class="habit ${checked ? 'checked' : ''}" data-habit-id="${h.id}" data-habit-type="daily">
       <div class="habit-emoji">${h.emoji}</div>
@@ -1566,7 +2393,7 @@ function renderDailyHabit(h, g, c) {
           <button class="habit-value-save" onclick="saveHabitValue('${h.id}')">记下</button>
         </div>` : ''}
       </div>
-      <div class="habit-checkbox">${checked ? '✓' : ''}</div>
+      <div class="habit-checkbox">${checked ? '✓' : ''}${stampHtml}</div>
     </div>
   `;
 }
@@ -1584,6 +2411,7 @@ function renderGoalHabit(h, g, c) {
   }
   const ratio = Math.min(1, count / targetDays);
   const dateRange = formatDateRange(h.startDate, h.endDate);
+  const stampHtml = c?.checked ? `<div class="habit-stamp"><span class="stamp">✓ done</span></div>` : '';
   return `
     <div class="habit ${checked ? 'checked' : ''}" data-habit-id="${h.id}" data-habit-type="goal">
       <div class="habit-emoji">${h.emoji}</div>
@@ -1594,7 +2422,7 @@ function renderGoalHabit(h, g, c) {
         <div class="habit-progress-text">${count} / ${targetDays} 天 · 还差 ${Math.max(0, targetDays - count)} 天</div>
         ${dateRange ? `<div class="habit-date-range">📅 ${dateRange}</div>` : ''}
       </div>
-      <div class="habit-checkbox">${checked ? '✓' : ''}</div>
+      <div class="habit-checkbox">${checked ? '✓' : ''}${stampHtml}</div>
     </div>
   `;
 }
@@ -1698,49 +2526,121 @@ function renderWeeklyHabit(h, g, c) {
 /* === Render: Planning === */
 function renderPlanning() {
   const date = state.selectedDate;
-  const todos = state.todos[date] || [];
-  const important = todos.filter(t => t.priority === 'important');
-  const normal = todos.filter(t => t.priority !== 'important');
-  const done = todos.filter(t => t.done).length;
+  const todayD = today();
+  const dateHeroHtml = `
+    <div class="date-header">
+      <button class="day-nav prev" onclick="navigateDay(-1)" aria-label="前一天">◀</button>
+      <span class="date-label">📋 ${formatDate(date)} · ${formatRelativeDate(date)}</span>
+      <button class="day-nav next" onclick="navigateDay(1)" ${date >= todayD ? 'disabled' : ''} aria-label="后一天">▶</button>
+    </div>
+  `;
 
+  // Tag chip filter
+  const allTags = getAllTags();
+  const chipsHtml = allTags.length ? `
+    <div class="tag-chips">
+      <button class="tag-chip ${state.tagFilter == null ? 'active' : ''}" onclick="setTagFilter(null)">#全部</button>
+      ${allTags.map(tag => `
+        <button class="tag-chip ${state.tagFilter === tag ? 'active' : ''}" onclick="setTagFilter('${escapeAttr(tag)}')">${escapeHtml(tag)}</button>
+      `).join('')}
+    </div>
+  ` : '';
+
+  // Section 1: Today's todos (daily + far-future surfaced)
+  const todayTodos = filterTodosByTag(getActiveTodos(date));
+  const todaySectionHtml = `
+    <div class="section-title"><span>✅ 今日待办 · ${todayTodos.length}</span></div>
+    <div class="todos" id="todos-today">${todayTodos.length ? todayTodos.map(t => renderTodo(t, { compact: false })).join('') : '<div class="hint hint-inline">✨ 那天的你很轻松，没有待办</div>'}</div>
+  `;
+
+  // Section 2: Long-term
+  const longTermActive = filterTodosByTag(state.longTermTodos.filter(t => !t.done));
+  const longTermSectionHtml = `
+    <div class="section-block section-block-longterm">
+      <div class="section-title"><span>🌱 长期任务 · ${longTermActive.length}</span><span class="section-action" onclick="addLongTermTodo()">✚</span></div>
+      <div class="todos" id="todos-longterm">${longTermActive.map(t => renderTodo(t, { compact: true })).join('') || '<div class="hint hint-inline">🌱 还没有长期任务</div>'}</div>
+    </div>
+  `;
+
+  // Section 3: Far-future (cross-date scan; filtered to those with targetDate >= today OR past dates if filter on)
+  const allFarFuture = getFarFutureTodos()
+    .filter(t => !t.done)
+    .map(t => ({ ...t, _renderDate: t._targetDate }));  // preserve targetDate in render
+  const farFutureFiltered = filterTodosByTag(allFarFuture);
+  const farFutureSectionHtml = `
+    <div class="section-block section-block-farfuture">
+      <div class="section-title"><span>🗓 远期任务 · ${farFutureFiltered.length}</span></div>
+      <div class="todos" id="todos-farfuture">${farFutureFiltered.map(t => renderTodo(t, { compact: true, kind: 'far-future' })).join('') || '<div class="hint hint-inline">🗓 还没有远期任务</div>'}</div>
+    </div>
+  `;
+
+  // Section 4: Completed (global)
+  const completed = filterTodosByTag(getCompletedTodos());
+  const completedCount = completed.length;
+  const completedSectionHtml = `
+    <div class="section-block section-block-completed">
+      <button class="section-toggle" onclick="toggleCompletedSection()">
+        ${state.completedCollapsed ? '▶' : '▼'} ✅ 已完成 ${completedCount} 项
+      </button>
+      ${state.completedCollapsed ? '' : `
+        <div class="todos" id="todos-completed">${completed.slice(0, 30).map(t => renderTodo(t, { compact: true, completed: true })).join('')}</div>
+      `}
+    </div>
+  `;
+
+  const isFlippedBefore = state.flippedDays.has(date);
+  const diffDays = Math.abs(Math.round((new Date(date) - new Date(todayD)) / 86400000));
+  const wear = Math.min(1, diffDays / 30) * 0.18;
   document.getElementById('planning-content').innerHTML = `
-    <div class="date-hero">
-      <div class="date-day">${parseInt(date.slice(-2))}</div>
-      <div class="date-info">
-        <div class="date-weekday">${weekdayCN(date)} ${date === today() ? '· 今天' : ''}</div>
-        <div class="date-full">${formatDate(date)}</div>
+    <div class="page planning-page ${isFlippedBefore ? 'flipped-before' : ''}" id="planning-page" data-date="${date}" style="--page-wear:${wear.toFixed(3)}">
+      <span class="page-decoration top-right">🌸</span>
+      <span class="page-decoration bottom-right">🎀</span>
+      ${dateHeroHtml}
+      ${chipsHtml}
+      <div class="quick-add">
+        <input type="text" class="quick-add-input" id="todo-input" placeholder="+ 添加任务…（回车保存为今日）" />
+        <button class="quick-add-btn" onclick="addTodo()">＋</button>
+        <button class="add-todo-more" onclick="openAddTodoSheet()" aria-label="高级新建">+More</button>
       </div>
-      <div class="date-progress">
-        <div class="date-progress-num">${done} / ${todos.length}</div>
-        <div class="date-progress-label">完成</div>
-      </div>
+      ${todaySectionHtml}
+      ${longTermSectionHtml}
+      ${farFutureSectionHtml}
+      ${completedSectionHtml}
+      <div class="hint">💛 错过也没关系 — 明天打开又是新的一天</div>
     </div>
-    <div class="quick-add">
-      <input type="text" class="quick-add-input" id="todo-input" placeholder="+ 添加任务…（回车保存）" />
-      <button class="quick-add-btn" onclick="addTodo()">＋</button>
-    </div>
-    ${important.length ? `
-      <div class="section-title"><span>⭐ 重要 · 今天一定要做</span><span class="section-action" onclick="clearDone('important')">清已完成</span></div>
-      <div class="todos" id="todos-important">${important.map(renderTodo).join('')}</div>
-    ` : ''}
-    <div class="section-title"><span>📋 ${important.length ? '其他' : '今天的任务'}</span><span class="section-action" onclick="clearDone('all')">清已完成</span></div>
-    <div class="todos" id="todos-normal">${(important.length ? normal : todos).map(renderTodo).join('')}</div>
-    ${todos.length === 0 ? '<div class="hint">还没有任务 · 加几个试试</div>' : ''}
   `;
 }
 
-function renderTodo(t) {
+function renderTodo(t, { compact = false, kind = null, completed = false } = {}) {
+  // Determine effective kind for styling
+  const effKind = kind || (t.longTerm ? 'long-term' : (t.kind || 'daily'));
+  const overdue = !t.done && effKind === 'far-future' && t._targetDate && t._targetDate < today();
+  // For far-future compact section, attach targetDate
+  const datePill = effKind === 'far-future' && t._targetDate ? `<span class="todo-date-pill">📅 ${formatDateShort(t._targetDate)}</span>` : '';
+  const tagsHtml = (t.tags || []).length ? `<div class="todo-tags">${t.tags.map(tag => `<span class="todo-tag-chip">${escapeHtml(tag)}</span>`).join('')}</div>` : '';
+  const overdueNote = overdue ? '<div class="todo-overdue-note">这事儿还在等你哦 ✿</div>' : '';
+  const completedClass = t.done || completed ? 'done' : '';
+  const importantClass = t.priority === 'important' && !t.done ? 'important' : '';
   return `
-    <div class="todo ${t.priority === 'important' ? 'important' : ''} ${t.done ? 'done' : ''}" data-todo-id="${t.id}">
+    <div class="todo todo-${effKind} ${importantClass} ${completedClass} ${overdue ? 'todo-overdue' : ''} ${compact ? 'todo-compact' : ''}" data-todo-id="${t.id}" data-todo-kind="${effKind}">
       <div class="todo-checkbox" onclick="event.stopPropagation();toggleTodo('${t.id}')">${t.done ? '✓' : ''}</div>
       <div class="todo-body" onclick="toggleTodo('${t.id}')">
-        <div class="todo-name">${escapeHtml(t.text)}</div>
-        ${t.priority === 'important' ? '<div class="todo-meta"><span class="todo-tag important">重要</span></div>' : ''}
+        <div class="todo-row-main">
+          ${datePill}
+          <div class="todo-name">${escapeHtml(t.text)}</div>
+        </div>
+        ${overdueNote}
+        ${tagsHtml}
       </div>
-      <div class="todo-delete" onclick="event.stopPropagation();deleteTodo('${t.id}')">×</div>
+      <div class="todo-actions">
+        ${!t.done ? `<span class="todo-restore" onclick="event.stopPropagation();restoreTodo('${t.id}')" title="编辑">✎</span>` : `<span class="todo-restore" onclick="event.stopPropagation();restoreTodo('${t.id}')" title="恢复">↺</span>`}
+        <span class="todo-delete" onclick="event.stopPropagation();deleteTodo('${t.id}')">×</span>
+      </div>
     </div>
   `;
 }
+
+const escapeAttr = (s) => String(s == null ? '' : s).replace(/'/g, '&#39;');
 
 function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
@@ -2069,55 +2969,7 @@ async function toggleWeekDay(habitId, dayIdx) {
   if (c.checked) celebrate(document.querySelector(`.habit-weekly[data-habit-id="${habitId}"]`));
 }
 
-/* === Actions: todo === */
-async function addTodo() {
-  const input = document.getElementById('todo-input');
-  if (!input) return;
-  const text = input.value.trim();
-  if (!text) return;
-  const date = state.selectedDate;
-  if (!state.todos[date]) state.todos[date] = [];
-  state.todos[date].push({
-    id: 't_' + Date.now(),
-    text,
-    done: false,
-    priority: 'normal',
-    createdAt: Date.now(),
-  });
-  await persistTodos(date);
-  input.value = '';
-  renderPlanning();
-}
-
-async function toggleTodo(id) {
-  const date = state.selectedDate;
-  const t = (state.todos[date] || []).find(x => x.id === id);
-  if (!t) return;
-  t.done = !t.done;
-  await persistTodos(date);
-  renderPlanning();
-}
-
-async function deleteTodo(id) {
-  if (!confirm('删除这条待办？')) return;
-  const date = state.selectedDate;
-  state.todos[date] = (state.todos[date] || []).filter(x => x.id !== id);
-  await persistTodos(date);
-  renderPlanning();
-}
-
-async function clearDone(scope) {
-  if (!confirm('清掉所有已完成的待办？')) return;
-  const date = state.selectedDate;
-  if (!state.todos[date]) return;
-  if (scope === 'all') {
-    state.todos[date] = state.todos[date].filter(t => !t.done);
-  } else {
-    state.todos[date] = state.todos[date].filter(t => !(t.done && t.priority === 'important'));
-  }
-  await persistTodos(date);
-  renderPlanning();
-}
+/* === Actions: todo (delegated to const versions defined earlier — addTodo/toggleTodo/deleteTodo/restoreTodo) === */
 
 /* === Long-press context menu (habit) === */
 let longPressTimer = null;
@@ -2269,6 +3121,91 @@ document.addEventListener('contextmenu', (e) => {
     showContextMenu(habit.dataset.habitId, e.clientX, e.clientY);
   }
 });
+
+// === Page-flip swipe (today/planning only) + todo row swipe (left=complete, right=delete) ===
+let swipeStartX = 0, swipeStartY = 0, swipeStartT = 0;
+let swipingTodoEl = null, swipingDirection = null;
+const SWIPE_PAGE_DIST = 60;
+const SWIPE_PAGE_ANGLE = 1.5;
+const SWIPE_PAGE_TIME = 600;
+const SWIPE_TODO_DIST = 60;
+
+document.addEventListener('touchstart', (e) => {
+  const t = e.touches[0];
+  swipeStartX = t.clientX;
+  swipeStartY = t.clientY;
+  swipeStartT = Date.now();
+  swipingTodoEl = null;
+  swipingDirection = null;
+  const todo = e.target.closest('.todo');
+  if (todo && todo.dataset.todoId && state.currentTab === 'planning') {
+    swipingTodoEl = todo;
+  }
+}, { passive: true });
+
+document.addEventListener('touchmove', (e) => {
+  if (!swipeStartT) return;
+  const t = e.touches[0];
+  const dx = t.clientX - swipeStartX;
+  const dy = t.clientY - swipeStartY;
+  if (swipingTodoEl && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+    e.preventDefault();
+    if (dx > 0) {
+      swipingDirection = 'right';
+      swipingTodoEl.style.transform = `translateX(${Math.min(dx, 80)}px)`;
+      swipingTodoEl.classList.add('swiping-right');
+      swipingTodoEl.classList.remove('swiping-left');
+    } else {
+      swipingDirection = 'left';
+      swipingTodoEl.style.transform = `translateX(${Math.max(dx, -80)}px)`;
+      swipingTodoEl.classList.add('swiping-left');
+      swipingTodoEl.classList.remove('swiping-right');
+    }
+  }
+}, { passive: false });
+
+document.addEventListener('touchend', (e) => {
+  if (!swipeStartT) return;
+  const t = (e.changedTouches && e.changedTouches[0]) || null;
+  if (!t) { resetSwipe(); return; }
+  const dx = t.clientX - swipeStartX;
+  const dy = t.clientY - swipeStartY;
+  const dt = Date.now() - swipeStartT;
+  // Todo row swipe handler
+  if (swipingTodoEl && Math.abs(dx) > SWIPE_TODO_DIST && Math.abs(dx) > Math.abs(dy) * 1.4) {
+    const id = swipingTodoEl.dataset.todoId;
+    if (swipingDirection === 'left') {
+      // 左滑 = 完成
+      toggleTodo(id);
+    } else if (swipingDirection === 'right') {
+      // 右滑 = 删除（带确认）
+      if (confirm('删除这条任务？')) deleteTodo(id);
+    }
+    resetSwipe();
+    swipeStartT = 0;
+    return;
+  }
+  resetSwipe();
+  // Page-flip swipe handler (only in today/planning tab)
+  if (Math.abs(dx) > SWIPE_PAGE_DIST && Math.abs(dx) > Math.abs(dy) * SWIPE_PAGE_ANGLE && dt < SWIPE_PAGE_TIME) {
+    if (state.currentTab === 'today' || state.currentTab === 'planning') {
+      navigateDay(dx > 0 ? -1 : 1);
+    }
+  }
+  swipeStartT = 0;
+});
+
+const resetSwipe = () => {
+  if (swipingTodoEl) {
+    swipingTodoEl.style.transform = '';
+    swipingTodoEl.classList.remove('swiping-left', 'swiping-right');
+    setTimeout(() => {
+      if (swipingTodoEl && swipingTodoEl.parentNode) swipingTodoEl.style.transform = '';
+    }, 200);
+  }
+  swipingTodoEl = null;
+  swipingDirection = null;
+};
 
 // Enter to add todo
 document.addEventListener('keydown', (e) => {
@@ -2824,6 +3761,10 @@ async function init() {
     // Load data from IndexedDB FIRST (no SEED race)
     await loadState();
     await migrateLegacyHabits();
+
+    // Rollover: shift any incomplete daily todos from past days to today
+    // (so unfinished today-tasks do not silently disappear when the date changes)
+    await rolloverIncompleteTodos();
 
     // Render all panels
     renderAll();
