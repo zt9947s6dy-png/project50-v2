@@ -228,29 +228,25 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* === Stats card (Today) === */
+  /* === Stats area (Today) — naked === */
   .stats-card {
-    background: linear-gradient(135deg, var(--c-primary) 0%, var(--c-accent) 100%);
-    border-radius: var(--radius-lg);
-    padding: 18px 20px;
-    color: white;
+    color: var(--c-text);
     margin-bottom: 18px;
-    box-shadow: var(--shadow-md);
   }
-  .stats-greeting { font-size: 12px; opacity: 0.9; margin-bottom: 4px; }
-  .stats-summary { font-size: 20px; font-weight: 700; margin-bottom: 12px; }
+  .stats-greeting { font-size: 12px; color: var(--c-text-muted); margin-bottom: 4px; }
+  .stats-summary { font-size: 20px; font-weight: 700; margin-bottom: 12px; color: var(--c-text); }
   .stats-bar {
-    background: rgba(255,255,255,0.25);
+    background: var(--c-surface-alt);
     border-radius: 6px;
     height: 6px;
     overflow: hidden;
     margin-bottom: 12px;
   }
-  .stats-bar-fill { background: white; height: 100%; border-radius: 6px; transition: width 0.4s ease; }
+  .stats-bar-fill { background: var(--c-primary); height: 100%; border-radius: 6px; transition: width 0.4s ease; }
   .stats-numbers { display: flex; gap: 14px; }
   .stats-num { flex: 1; }
-  .stats-num-value { font-size: 16px; font-weight: 700; line-height: 1; }
-  .stats-num-label { font-size: 10px; opacity: 0.85; margin-top: 3px; }
+  .stats-num-value { font-size: 18px; font-weight: 700; line-height: 1; color: var(--c-text); }
+  .stats-num-label { font-size: 10px; color: var(--c-text-muted); margin-top: 3px; }
 
   /* === Group === */
   .group { margin-bottom: 16px; }
@@ -1167,15 +1163,14 @@
     font-weight: 600;
   }
 
-  /* === Section blocks (4 sections, soft cards) === */
+  /* === Section blocks (naked, separated by spacing only) === */
   .section-block {
-    border-radius: var(--radius-md);
-    padding: 12px 14px;
-    margin-top: 14px;
+    margin-top: 18px;
+    padding: 0;
   }
-  .section-block-longterm { background: rgba(127,176,105,0.18); }   /* soft green */
-  .section-block-farfuture { background: rgba(122,156,198,0.20); } /* soft indigo */
-  .section-block-completed { background: rgba(0,0,0,0.06); }       /* soft grey */
+  .section-block-longterm,
+  .section-block-farfuture,
+  .section-block-completed { background: transparent; }
   .section-title {
     display: flex;
     align-items: center;
@@ -1710,27 +1705,12 @@
     }
   }
 
-  /* === Page (simple card, no journal/book visual) === */
+  /* === Page (naked wrapper, no card / no shadow) === */
   .page {
     position: relative;
-    background: var(--c-surface);
-    border-radius: var(--radius-lg);
-    padding: 16px 18px 24px;
-    margin-bottom: 16px;
+    padding: 4px 0 20px;
   }
 
-  /* === Stats card softened (Phase 2) === */
-  .stats-card {
-    background: linear-gradient(135deg, #FBF6E9 0%, #FCE3E6 100%) !important;
-    color: var(--journal-ink) !important;
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-  }
-  [data-theme="dark"] .stats-card,
-  :root.theme-dark .stats-card {
-    background: linear-gradient(135deg, #3A2E27 0%, #4A2E33 100%) !important;
-    color: var(--journal-ink) !important;
-  }
 
   /* === Done stamp (Caveat) === */
   .stamp {
