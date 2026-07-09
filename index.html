@@ -1276,6 +1276,20 @@
     font-size: 12px;
     cursor: pointer;
   }
+  .quick-add-date {
+    height: 40px;
+    padding: 0 10px;
+    border-radius: 10px;
+    border: 1px solid var(--c-border);
+    background: var(--c-surface);
+    font-size: 13px;
+    color: var(--c-text);
+    min-width: 130px;
+  }
+  .quick-add.compact { margin: 0 0 10px; }
+  .quick-add.compact .quick-add-input { height: 36px; font-size: 13px; }
+  .quick-add.compact .quick-add-btn { height: 36px; width: 32px; font-size: 16px; }
+  .quick-add.compact .quick-add-date { height: 36px; font-size: 12px; min-width: 120px; }
 
   /* === todo card variants === */
   /* === Goalday view (Phase 6) === */
@@ -2612,23 +2626,25 @@ const addTodo = (textArg, opts = {}) => {
   renderPlanning();
 };
 const addLongTermTodo = () => {
-  // Reuse addTodo via prompt-style input
-  const text = prompt('🌱 新长期任务：');
-  if (text && text.trim()) addTodo(text.trim(), { kind: 'long-term' });
+  // Reuse addTodo via inline input
+  const input = document.getElementById('lt-input');
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) { input.focus(); return; }
+  addTodo(text, { kind: 'long-term' });
+  input.value = '';
+  input.focus();
 };
-const openAddTodoSheet = () => {
-  // Lightweight sheet for the +More button. Phase 1 minimum:
-  // Just prompt for text + kind. Tag support deferred to v2.
-  const text = prompt('✚ 新任务（输入文字）；之后选类型：1=今日 / 2=长期 / 3=远期（输入数字）');
-  if (!text || !text.trim()) return;
-  const choice = prompt('类型：1=今日, 2=长期, 3=远期（输入日期 YYYY-MM-DD）', '1');
-  if (choice === '2') {
-    addTodo(text.trim(), { kind: 'long-term' });
-  } else if (choice && choice.length > 1 && choice.includes('-')) {
-    addTodo(text.trim(), { kind: 'far-future', targetDate: choice.trim() });
-  } else {
-    addTodo(text.trim(), { kind: 'daily' });
-  }
+const addFarFutureTodo = () => {
+  const input = document.getElementById('ff-input');
+  const dateInput = document.getElementById('ff-date');
+  if (!input || !dateInput) return;
+  const text = input.value.trim();
+  const targetDate = dateInput.value || today();
+  if (!text) { input.focus(); return; }
+  addTodo(text, { kind: 'far-future', targetDate });
+  input.value = '';
+  input.focus();
 };
 const toggleTodo = async (id) => {
   // Look up across all stores
@@ -3153,7 +3169,11 @@ function renderPlanning() {
   const longTermActive = filterTodosByTag(state.longTermTodos.filter(t => !t.done));
   const longTermSectionHtml = `
     <div class="section-block section-block-longterm">
-      <div class="section-title"><span>🌱 长期任务 · ${longTermActive.length}</span><span class="section-action" onclick="addLongTermTodo()">✚</span></div>
+      <div class="section-title"><span>🌱 长期任务 · ${longTermActive.length}</span></div>
+      <div class="quick-add compact" onclick="document.getElementById('lt-input')?.focus()">
+        <input type="text" class="quick-add-input" id="lt-input" placeholder="+ 添加长期任务…（回车保存）" onkeydown="if(event.key==='Enter'){addLongTermTodo();event.preventDefault();}" />
+        <button class="quick-add-btn" onclick="addLongTermTodo()" aria-label="添加长期任务">＋</button>
+      </div>
       <div class="todos" id="todos-longterm">${longTermActive.map(t => renderTodo(t, { compact: true })).join('') || '<div class="hint hint-inline">🌱 还没有长期任务</div>'}</div>
     </div>
   `;
@@ -3166,6 +3186,11 @@ function renderPlanning() {
   const farFutureSectionHtml = `
     <div class="section-block section-block-farfuture">
       <div class="section-title"><span>🗓 远期任务 · ${farFutureFiltered.length}</span></div>
+      <div class="quick-add compact">
+        <input type="text" class="quick-add-input" id="ff-input" placeholder="+ 添加远期任务…" onkeydown="if(event.key==='Enter'){addFarFutureTodo();event.preventDefault();}" />
+        <input type="date" class="quick-add-date" id="ff-date" value="${today()}" min="${today()}" aria-label="远期任务日期" />
+        <button class="quick-add-btn" onclick="addFarFutureTodo()" aria-label="添加远期任务">＋</button>
+      </div>
       <div class="todos" id="todos-farfuture">${farFutureFiltered.map(t => renderTodo(t, { compact: true, kind: 'far-future' })).join('') || '<div class="hint hint-inline">🗓 还没有远期任务</div>'}</div>
     </div>
   `;
@@ -3192,9 +3217,8 @@ function renderPlanning() {
       ${dateHeroHtml}
       ${chipsHtml}
       <div class="quick-add">
-        <input type="text" class="quick-add-input" id="todo-input" placeholder="+ 添加任务…（回车保存为今日）" />
-        <button class="quick-add-btn" onclick="addTodo()">＋</button>
-        <button class="add-todo-more" onclick="openAddTodoSheet()" aria-label="高级新建">+More</button>
+        <input type="text" class="quick-add-input" id="todo-input" placeholder="+ 添加今日任务…（回车保存）" onkeydown="if(event.key==='Enter'){addTodo();event.preventDefault();}" />
+        <button class="quick-add-btn" onclick="addTodo()" aria-label="添加今日任务">＋</button>
       </div>
       ${todaySectionHtml}
       ${longTermSectionHtml}
